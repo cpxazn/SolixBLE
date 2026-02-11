@@ -584,6 +584,8 @@ class C300(SolixBLEDevice):
 
     _EXPECTED_TELEMETRY_LENGTH: int = 253
 
+    # TODO Test!
+
     # @property
     # def ac_timer_remaining(self) -> int:
     #     """Time remaining on AC timer.
@@ -591,6 +593,8 @@ class C300(SolixBLEDevice):
     #     :returns: Seconds remaining or default int value.
     #     """
     #     return self._parse_int(16) if self._data is not None else DEFAULT_METADATA_INT
+
+    # TODO Test!
 
     # @property
     # def ac_timer(self) -> datetime | None:
@@ -604,6 +608,8 @@ class C300(SolixBLEDevice):
     #     ):
     #         return datetime.now() + timedelta(seconds=self.ac_timer_remaining)
 
+    # TODO Test!
+
     # @property
     # def dc_timer_remaining(self) -> int:
     #     """Time remaining on DC timer.
@@ -611,6 +617,8 @@ class C300(SolixBLEDevice):
     #     :returns: Seconds remaining or default int value.
     #     """
     #     return self._parse_int(23) if self._data is not None else DEFAULT_METADATA_INT
+
+    # TODO Test!
 
     # @property
     # def dc_timer(self) -> datetime | None:
@@ -624,110 +632,112 @@ class C300(SolixBLEDevice):
     #     ):
     #         return datetime.now() + timedelta(seconds=self.dc_timer_remaining)
 
-    # @property
-    # def hours_remaining(self) -> float:
-    #     """Time remaining to full/empty.
+    @property
+    def hours_remaining(self) -> float:
+        """Time remaining to full/empty.
 
-    #     Note that any hours over 24 are overflowed to the
-    #     days remaining. Use time_remaining if you want
-    #     days to be included.
+        Note that any hours over 24 are overflowed to the
+        days remaining. Use time_remaining if you want
+        days to be included.
 
-    #     :returns: Hours remaining or default float value.
-    #     """
-    #     return (
-    #         self._data[30] / 10.0 if self._data is not None else DEFAULT_METADATA_FLOAT
-    #     )
+        :returns: Hours remaining or default float value.
+        """
+        return (
+            self._data[20] / 10.0 if self._data is not None else DEFAULT_METADATA_FLOAT
+        )
 
-    # @property
-    # def days_remaining(self) -> int:
-    #     """Time remaining to full/empty.
+    @property
+    def days_remaining(self) -> int:
+        """Time remaining to full/empty.
 
-    #     :returns: Days remaining or default int value.
-    #     """
-    #     return self._data[31] if self._data is not None else DEFAULT_METADATA_INT
+        :returns: Days remaining or default int value.
+        """
+        return self._data[21] if self._data is not None else DEFAULT_METADATA_INT
 
-    # @property
-    # def time_remaining(self) -> float:
-    #     """Time remaining to full/empty.
+    @property
+    def time_remaining(self) -> float:
+        """Time remaining to full/empty.
 
-    #     This includes any hours which were overflowed
-    #     into days.
+        This includes any hours which were overflowed
+        into days.
 
-    #     :returns: Hours remaining or default float value.
-    #     """
-    #     if (
-    #         self.hours_remaining == DEFAULT_METADATA_FLOAT
-    #         or self.days_remaining == DEFAULT_METADATA_INT
-    #     ):
-    #         return DEFAULT_METADATA_FLOAT
+        :returns: Hours remaining or default float value.
+        """
+        if (
+            self.hours_remaining == DEFAULT_METADATA_FLOAT
+            or self.days_remaining == DEFAULT_METADATA_INT
+        ):
+            return DEFAULT_METADATA_FLOAT
 
-    #     return (self.days_remaining * 24) + self.hours_remaining
+        return (self.days_remaining * 24) + self.hours_remaining
 
-    # @property
-    # def timestamp_remaining(self) -> datetime | None:
-    #     """Timestamp of when device will be full/empty.
+    @property
+    def timestamp_remaining(self) -> datetime | None:
+        """Timestamp of when device will be full/empty.
 
-    #     :returns: Timestamp of when will be full/empty or None.
-    #     """
-    #     if self.time_remaining == DEFAULT_METADATA_FLOAT:
-    #         return None
-    #     return datetime.now() + timedelta(hours=self.time_remaining)
+        :returns: Timestamp of when will be full/empty or None.
+        """
+        if self.time_remaining == DEFAULT_METADATA_FLOAT:
+            return None
+        return datetime.now() + timedelta(hours=self.time_remaining)
 
-    # @property
-    # def ac_power_in(self) -> int:
-    #     """AC Power In.
+    @property
+    def ac_power_in(self) -> int:
+        """AC Power In.
 
-    #     :returns: Total AC power in or default int value.
-    #     """
-    #     return self._parse_int(35) if self._data is not None else DEFAULT_METADATA_INT
+        :returns: Total AC power in or default int value.
+        """
+        return self._parse_int(25) if self._data is not None else DEFAULT_METADATA_INT
 
-    # @property
-    # def ac_power_out(self) -> int:
-    #     """AC Power Out.
+    @property
+    def ac_power_out(self) -> int:
+        """AC Power Out.
 
-    #     :returns: Total AC power out or default int value.
-    #     """
-    #     return self._parse_int(40) if self._data is not None else DEFAULT_METADATA_INT
+        :returns: Total AC power out or default int value.
+        """
+        return self._parse_int(30) if self._data is not None else DEFAULT_METADATA_INT
 
-    # @property
-    # def usb_c1_power(self) -> int:
-    #     """USB C1 Power.
+    @property
+    def usb_c1_power(self) -> int:
+        """USB C1 Power.
 
-    #     :returns: USB port C1 power or default int value.
-    #     """
-    #     return self._data[45] if self._data is not None else DEFAULT_METADATA_INT
+        :returns: USB port C1 power or default int value.
+        """
+        return self._data[35] if self._data is not None else DEFAULT_METADATA_INT
 
-    # @property
-    # def usb_c2_power(self) -> int:
-    #     """USB C2 Power.
+    @property
+    def usb_c2_power(self) -> int:
+        """USB C2 Power.
 
-    #     :returns: USB port C2 power or default int value.
-    #     """
-    #     return self._data[50] if self._data is not None else DEFAULT_METADATA_INT
+        :returns: USB port C2 power or default int value.
+        """
+        return self._data[40] if self._data is not None else DEFAULT_METADATA_INT
 
-    # @property
-    # def usb_c3_power(self) -> int:
-    #     """USB C3 Power.
+    @property
+    def usb_c3_power(self) -> int:
+        """USB C3 Power.
 
-    #     :returns: USB port C3 power or default int value.
-    #     """
-    #     return self._data[55] if self._data is not None else DEFAULT_METADATA_INT
+        :returns: USB port C3 power or default int value.
+        """
+        return self._data[45] if self._data is not None else DEFAULT_METADATA_INT
 
-    # @property
-    # def usb_a1_power(self) -> int:
-    #     """USB A1 Power.
+    @property
+    def usb_a1_power(self) -> int:
+        """USB A1 Power.
 
-    #     :returns: USB port A1 power or default int value.
-    #     """
-    #     return self._data[60] if self._data is not None else DEFAULT_METADATA_INT
+        :returns: USB port A1 power or default int value.
+        """
+        return self._data[50] if self._data is not None else DEFAULT_METADATA_INT
 
-    # @property
-    # def dc_power_out(self) -> int:
-    #     """DC Power Out.
+    @property
+    def dc_power_out(self) -> int:
+        """DC Power Out.
 
-    #     :returns: DC power out or default int value.
-    #     """
-    #     return self._data[65] if self._data is not None else DEFAULT_METADATA_INT
+        :returns: DC power out or default int value.
+        """
+        return self._data[55] if self._data is not None else DEFAULT_METADATA_INT
+
+    # TODO Unable to test. Need more sun :)
 
     # @property
     # def solar_power_in(self) -> int:
@@ -737,21 +747,23 @@ class C300(SolixBLEDevice):
     #     """
     #     return self._parse_int(70) if self._data is not None else DEFAULT_METADATA_INT
 
-    # @property
-    # def power_in(self) -> int:
-    #     """Total Power In.
+    @property
+    def power_in(self) -> int:
+        """Total Power In.
 
-    #     :returns: Total power in or default int value.
-    #     """
-    #     return self._parse_int(75) if self._data is not None else DEFAULT_METADATA_INT
+        :returns: Total power in or default int value.
+        """
+        return self._parse_int(65) if self._data is not None else DEFAULT_METADATA_INT
 
-    # @property
-    # def power_out(self) -> int:
-    #     """Total Power Out.
+    @property
+    def power_out(self) -> int:
+        """Total Power Out.
 
-    #     :returns: Total power out or default int value.
-    #     """
-    #     return self._parse_int(80) if self._data is not None else DEFAULT_METADATA_INT
+        :returns: Total power out or default int value.
+        """
+        return self._parse_int(70) if self._data is not None else DEFAULT_METADATA_INT
+
+    # TODO Unable to test. Need more sun :)
 
     # @property
     # def solar_port(self) -> PortStatus:
@@ -763,63 +775,66 @@ class C300(SolixBLEDevice):
     #         self._data[129] if self._data is not None else DEFAULT_METADATA_INT
     #     )
 
-    # @property
-    # def battery_percentage(self) -> int:
-    #     """Battery Percentage.
+    @property
+    def battery_percentage(self) -> int:
+        """Battery Percentage.
 
-    #     :returns: Percentage charge of battery or default int value.
-    #     """
-    #     return self._data[141] if self._data is not None else DEFAULT_METADATA_INT
+        :returns: Percentage charge of battery or default int value.
+        """
+        return self._data[131] if self._data is not None else DEFAULT_METADATA_INT
 
-    # @property
-    # def usb_port_c1(self) -> PortStatus:
-    #     """USB C1 Port Status.
+    @property
+    def usb_port_c1(self) -> PortStatus:
+        """USB C1 Port Status.
 
-    #     :returns: Status of the USB C1 port.
-    #     """
-    #     return PortStatus(
-    #         self._data[149] if self._data is not None else DEFAULT_METADATA_INT
-    #     )
+        :returns: Status of the USB C1 port.
+        """
+        return PortStatus(
+            self._data[139] if self._data is not None else DEFAULT_METADATA_INT
+        )
 
-    # @property
-    # def usb_port_c2(self) -> PortStatus:
-    #     """USB C2 Port Status.
+    @property
+    def usb_port_c2(self) -> PortStatus:
+        """USB C2 Port Status.
 
-    #     :returns: Status of the USB C2 port.
-    #     """
-    #     return PortStatus(
-    #         self._data[153] if self._data is not None else DEFAULT_METADATA_INT
-    #     )
+        :returns: Status of the USB C2 port.
+        """
+        return PortStatus(
+            self._data[143] if self._data is not None else DEFAULT_METADATA_INT
+        )
 
-    # @property
-    # def usb_port_c3(self) -> PortStatus:
-    #     """USB C3 Port Status.
+    @property
+    def usb_port_c3(self) -> PortStatus:
+        """USB C3 Port Status.
 
-    #     :returns: Status of the USB C3 port.
-    #     """
-    #     return PortStatus(
-    #         self._data[157] if self._data is not None else DEFAULT_METADATA_INT
-    #     )
+        :returns: Status of the USB C3 port.
+        """
+        return PortStatus(
+            self._data[147] if self._data is not None else DEFAULT_METADATA_INT
+        )
 
-    # @property
-    # def usb_port_a1(self) -> PortStatus:
-    #     """USB A1 Port Status.
+    @property
+    def usb_port_a1(self) -> PortStatus:
+        """USB A1 Port Status.
 
-    #     :returns: Status of the USB A1 port.
-    #     """
-    #     return PortStatus(
-    #         self._data[161] if self._data is not None else DEFAULT_METADATA_INT
-    #     )
+        :returns: Status of the USB A1 port.
+        """
+        return PortStatus(
+            self._data[151] if self._data is not None else DEFAULT_METADATA_INT
+        )
 
-    # @property
-    # def dc_port(self) -> PortStatus:
-    #     """DC Port Status.
+    @property
+    def dc_port(self) -> PortStatus:
+        """DC Port Status.
 
-    #     :returns: Status of the DC port.
-    #     """
-    #     return PortStatus(
-    #         self._data[165] if self._data is not None else DEFAULT_METADATA_INT
-    #     )
+        :returns: Status of the DC port.
+        """
+        return PortStatus(
+            self._data[155] if self._data is not None else DEFAULT_METADATA_INT
+        )
+
+    # TODO light status is currently a casualty of the lost data due to
+    # the imperfect decryption algorithm
 
     # @property
     # def light(self) -> LightStatus:
@@ -828,7 +843,7 @@ class C300(SolixBLEDevice):
     #     :returns: Status of the light bar.
     #     """
     #     return LightStatus(
-    #         self._data[241] if self._data is not None else DEFAULT_METADATA_INT
+    #         self._data[231] if self._data is not None else DEFAULT_METADATA_INT
     #     )
 
 
