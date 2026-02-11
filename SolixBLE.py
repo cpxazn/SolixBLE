@@ -539,6 +539,8 @@ class SolixBLEDevice:
 
         :param client: Bleak client.
         """
+        self._number_of_received_packets = 0
+        self._shared_key = None
 
         # Ignore disconnect callbacks from old clients
         if client != self._client:
