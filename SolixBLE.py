@@ -364,6 +364,21 @@ class SolixBLEDevice:
         self._data = data
         self._last_data_timestamp = datetime.now()
 
+    def _process_telemetry_update(self, handle: int, data: bytearray) -> None:
+        """Update internal state and run callbacks"""
+
+        # Parse data
+        _LOGGER.debug(f"Received notification from '{self.name}'. Data: {data.hex()}")
+        old_data = self._data
+        self._parse_telemetry(data)
+
+        # Print status update
+        _LOGGER.debug(self)
+
+        # Run callbacks if changed
+        if data != old_data:
+            self._run_state_changed_callbacks()
+
     def _run_state_changed_callbacks(self) -> None:
         """Execute all registered callbacks for a state change."""
         for function in self._state_changed_callbacks:
@@ -373,22 +388,10 @@ class SolixBLEDevice:
         """Subscribe to state updates from device."""
         if self._supports_telemetry:
 
-            def _telemetry_update(handle: int, data: bytearray) -> None:
-                """Update internal state and run callbacks."""
-
-                # Parse data
-                _LOGGER.debug(f"Received notification from '{self.name}'. Data: {data}")
-                old_data = self._data
-                self._parse_telemetry(data)
-
-                # Print status update
-                _LOGGER.debug(self)
-
-                # Run callbacks if changed
-                if data != old_data:
-                    self._run_state_changed_callbacks()
-
-            await self._client.start_notify(UUID_TELEMETRY, _telemetry_update)
+            # Subscribe to service which device uses to send us data
+            await self._client.start_notify(
+                UUID_TELEMETRY, self._process_telemetry_update
+            )
 
     async def _reconnect(self) -> None:
         """Re-connect to device and run state change callbacks on timeout/failure."""
