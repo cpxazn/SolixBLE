@@ -262,7 +262,7 @@ class SolixBLEDevice:
                 f"Sending negotiations initiation request to '{self.name}'..."
             )
             await self._client.write_gatt_char(
-                UUID_COMMAND, bytes.fromhex(NEGOTIATION_COMMAND_0)
+                UUID_COMMAND, bytes.fromhex(NEGOTIATION_COMMAND_0), response=True
             )
             _LOGGER.debug(f"Sent negotiation initiation request to '{self.name}'!")
             await asyncio.sleep(3)
