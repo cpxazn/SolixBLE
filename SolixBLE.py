@@ -165,6 +165,7 @@ class SolixBLEDevice:
         self._connection_attempts: int = 0
         self._number_of_received_packets: int = 0
         self._shared_key: bytes | None = None
+        self._iv: bytes | None = None
 
     def add_callback(self, function: Callable[[], None]) -> None:
         """Register a callback to be run on state updates.
@@ -216,6 +217,7 @@ class SolixBLEDevice:
                 self._supports_telemetry = False
                 self._number_of_received_packets = 0
                 self._shared_key = None
+                self._iv = None
 
                 # Make new client and connect
                 self._client = await establish_connection(
@@ -299,6 +301,7 @@ class SolixBLEDevice:
         self._connection_attempts = 0
         self._number_of_received_packets = 0
         self._shared_key = None
+        self._iv = None
 
         # If there is a client disconnect and throw it away
         if self._client:
@@ -323,6 +326,7 @@ class SolixBLEDevice:
             self.connected
             and self.supports_telemetry
             and self._shared_key is not None
+            and self._iv is not None
             and self._data is not None
         )
 
@@ -504,7 +508,14 @@ class SolixBLEDevice:
         # This step is special. We can calculate the shared secret at this point
         elif self._number_of_received_packets == 5:
             _LOGGER.debug("Calculating shared secret...")
-            self._shared_key = self._calculate_shared_secret(data)
+
+            # The first half of the shared secret is the AES key
+            # and the second half is the IV
+            full_shared_secret = self._calculate_shared_secret(data)
+            self._shared_key = full_shared_secret[:16]
+            self._iv = full_shared_secret[16:]
+            _LOGGER.debug(f"AES key: {self._shared_key.hex()}")
+            _LOGGER.debug(f"AES IV: {self._iv.hex()}")
             _LOGGER.debug("Sending negotiation response 5...")
             await self._client.write_gatt_char(
                 UUID_COMMAND, bytes.fromhex(NEGOTIATION_COMMAND_5)
@@ -530,21 +541,12 @@ class SolixBLEDevice:
         # Calculate shared secret, only the first half of it is used as the AES key
         full_shared_secret = private_key.exchange(ec.ECDH(), power_station_public_key)
         _LOGGER.debug(f"Full shared secret: {full_shared_secret.hex()}")
-        shared_secret = full_shared_secret[:16]
-        _LOGGER.debug(f"Shared secret: {shared_secret.hex()}")
-        return shared_secret
+        return full_shared_secret
 
     def _decrypt_packet(self, data: bytes) -> bytes:
-        """
-        Decrypt telemetry packet.
-
-        This implementation is not perfect and results in some of the data
-        being lost, I suspect its some sort of padding or trimming that I
-        am missing but this implementation works well enough. Its still able
-        to decode the telemetry data that I care about.
-        """
-        encrypted_payload = data[10:-35]
-        cipher = AES.new(self._shared_key, AES.MODE_CBC)
+        """Decrypt telemetry packet using negotiated shared secret and IV."""
+        encrypted_payload = data[10:-3]
+        cipher = AES.new(self._shared_key, AES.MODE_CBC, iv=self._iv)
         return cipher.decrypt(encrypted_payload)
 
     def _run_state_changed_callbacks(self) -> None:
@@ -605,6 +607,7 @@ class SolixBLEDevice:
         self._supports_telemetry = False
         self._number_of_received_packets = 0
         self._shared_key = None
+        self._iv = None
 
         # If we expected the disconnect then we don't try to reconnect.
         if self._expect_disconnect:
@@ -643,53 +646,45 @@ class C300(SolixBLEDevice):
 
     _EXPECTED_TELEMETRY_LENGTH: int = 253
 
-    # TODO Test!
+    @property
+    def ac_timer_remaining(self) -> int:
+        """Time remaining on AC timer.
 
-    # @property
-    # def ac_timer_remaining(self) -> int:
-    #     """Time remaining on AC timer.
+        :returns: Seconds remaining or default int value.
+        """
+        return self._parse_int(6) if self._data is not None else DEFAULT_METADATA_INT
 
-    #     :returns: Seconds remaining or default int value.
-    #     """
-    #     return self._parse_int(16) if self._data is not None else DEFAULT_METADATA_INT
+    @property
+    def ac_timer(self) -> datetime | None:
+        """Timestamp of AC timer.
 
-    # TODO Test!
+        :returns: Timestamp of when AC timer expires or None.
+        """
+        if (
+            self.ac_timer_remaining != DEFAULT_METADATA_INT
+            and self.ac_timer_remaining != 0
+        ):
+            return datetime.now() + timedelta(seconds=self.ac_timer_remaining)
 
-    # @property
-    # def ac_timer(self) -> datetime | None:
-    #     """Timestamp of AC timer.
+    @property
+    def dc_timer_remaining(self) -> int:
+        """Time remaining on DC timer.
 
-    #     :returns: Timestamp of when AC timer expires or None.
-    #     """
-    #     if (
-    #         self.ac_timer_remaining != DEFAULT_METADATA_INT
-    #         and self.ac_timer_remaining != 0
-    #     ):
-    #         return datetime.now() + timedelta(seconds=self.ac_timer_remaining)
+        :returns: Seconds remaining or default int value.
+        """
+        return self._parse_int(13) if self._data is not None else DEFAULT_METADATA_INT
 
-    # TODO Test!
+    @property
+    def dc_timer(self) -> datetime | None:
+        """Timestamp of DC timer.
 
-    # @property
-    # def dc_timer_remaining(self) -> int:
-    #     """Time remaining on DC timer.
-
-    #     :returns: Seconds remaining or default int value.
-    #     """
-    #     return self._parse_int(23) if self._data is not None else DEFAULT_METADATA_INT
-
-    # TODO Test!
-
-    # @property
-    # def dc_timer(self) -> datetime | None:
-    #     """Timestamp of DC timer.
-
-    #     :returns: Timestamp of when DC timer expires or None.
-    #     """
-    #     if (
-    #         self.dc_timer_remaining != DEFAULT_METADATA_INT
-    #         and self.dc_timer_remaining != 0
-    #     ):
-    #         return datetime.now() + timedelta(seconds=self.dc_timer_remaining)
+        :returns: Timestamp of when DC timer expires or None.
+        """
+        if (
+            self.dc_timer_remaining != DEFAULT_METADATA_INT
+            and self.dc_timer_remaining != 0
+        ):
+            return datetime.now() + timedelta(seconds=self.dc_timer_remaining)
 
     @property
     def hours_remaining(self) -> float:
@@ -892,18 +887,27 @@ class C300(SolixBLEDevice):
             self._data[155] if self._data is not None else DEFAULT_METADATA_INT
         )
 
-    # TODO light status is currently a casualty of the lost data due to
-    # the imperfect decryption algorithm
+    @property
+    def light(self) -> LightStatus:
+        """Light Status.
 
-    # @property
-    # def light(self) -> LightStatus:
-    #     """Light Status.
+        :returns: Status of the light bar.
+        """
+        return LightStatus(
+            self._data[231] if self._data is not None else DEFAULT_METADATA_INT
+        )
 
-    #     :returns: Status of the light bar.
-    #     """
-    #     return LightStatus(
-    #         self._data[231] if self._data is not None else DEFAULT_METADATA_INT
-    #     )
+    @property
+    def serial_number(self) -> str:
+        """Serial number.
+
+        :returns: The serial number of the device.
+        """
+        return (
+            self._data[171:187].decode("ascii")
+            if self._data is not None
+            else DEFAULT_METADATA_STRING
+        )
 
 
 class C1000(SolixBLEDevice):
