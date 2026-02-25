@@ -127,6 +127,22 @@ class PortStatus(Enum):
     INPUT = 2
 
 
+class ChargingStatus(Enum):
+    """The status of charging/discharging on a device."""
+
+    #: The status is unknown.
+    UNKNOWN = -1
+
+    #: The device is idle (Battery not charging or discharging).
+    IDLE = 0
+
+    #: The device is discharging.
+    DISCHARGING = 1
+
+    #: The device is charging.
+    CHARGING = 2
+
+
 class LightStatus(Enum):
     """The status of the light on the device."""
 
@@ -159,7 +175,7 @@ class SolixBLEDevice:
 
         self._ble_device: BLEDevice = ble_device
         self._client: BleakClient | None = None
-        self._data: bytes | None = None
+        self._data: dict[str, bytes] | None = None
         self._last_data_timestamp: datetime | None = None
         self._supports_telemetry: bool = False
         self._state_changed_callbacks: list[Callable[[], None]] = []
@@ -409,46 +425,74 @@ class SolixBLEDevice:
                 f"Device '{self.name}' does not support the telemetry characteristic!"
             )
 
-    def _parse_int(self, index: int) -> int:
-        """Parse a 16-bit integer at the index in the telemetry bytes.
+    def _parse_int(
+        self, key: str, begin: int = None, end: int = None, signed: bool = False
+    ) -> int:
+        """Parse an integer at the specified key in the telemetry data.
 
-        :param index: Index of 16-bit integer in array.
-        :returns: 16-bit integer.
-        :raises IndexError: If index is out of range.
+        :param key: Key of parameter the int is in (e.g a1, a2, a3, ...).
+        :param begin: Slice bytes from this index when parsing integer from bytes at the key.
+        :param begin: Slice bytes to this index when parsing integer from bytes at the key.
+        :param signed: If the integer is signed.
+        :returns: Integer or default int value if no data.
+        :raises KeyError: If key does not exist.
+        :raises IndexError: If slices invalid.
         """
-        return int.from_bytes(self._data[index : index + 2], byteorder="little")
+        if self._data is None:
+            return DEFAULT_METADATA_INT
+        int_bytes = self._data[key][begin:end]
+        return int.from_bytes(int_bytes, byteorder="little", signed=signed)
 
-    def _parse_string(self, index: int, length: int) -> str:
-        """Parse ASCII text at the index in the telemetry bytes.
+    def _parse_string(self, key: str, begin: int = None, end: int = None) -> str:
+        """Parse ASCII text at the specified key in the telemetry data.
 
-        :param index: Start index of ASCII text in telemetry bytes.
-        :param length: Length of ASCII text.
-        :returns: String of parsed data from telemetry.
+        :param key: Key of parameter the string is in (e.g a1, a2, a3, ...).
+        :param begin: Slice bytes from this index when parsing string from bytes at the key.
+        :param begin: Slice bytes to this index when parsing string from bytes at the key.
+        :returns: String of parsed data from telemetry or default str if no data.
         :raises UnicodeDecodeError: If bytes are not ASCII text.
         """
-        return self._data[index : index + length].decode("ascii")
+        return (
+            self._data[key][begin:end].decode("ascii")
+            if self._data
+            else DEFAULT_METADATA_STRING
+        )
+
+    def _parse_telemetry_bytes(self, data: bytearray) -> dict[str, bytes]:
+        """Parse a decrypted telemetry message bytes into parameters."""
+
+        parsed_data: dict[str, bytes] = {}
+        remaining_data = bytearray(data)
+        while len(remaining_data) != 0:
+            param_id = bytes([remaining_data.pop(0)]).hex()
+            param_len = remaining_data.pop(0)
+            param_data = bytes([remaining_data.pop(0) for _ in range(0, param_len)])
+            parsed_data[param_id] = param_data
+
+        return parsed_data
 
     def _parse_telemetry(self, data: bytearray) -> None:
         """Update internal values using the telemetry data.
 
         :param data: Bytes from status update message.
         """
+        parsed_data = self._parse_telemetry_bytes(data)
 
         # If debugging and we have a previous status update to compare against
         if _LOGGER.isEnabledFor(logging.DEBUG) and self._data is not None:
-            if data == self._data:
+            if parsed_data == self._data:
                 _LOGGER.debug(f"No changes from previous status update")
             else:
                 _LOGGER.debug(f"Changes detected compared to previous status update!")
-                for index, old_byte in enumerate(self._data):
-                    new_byte = data[index]
-                    if new_byte != old_byte:
-                        _LOGGER.debug(
-                            f"Previous value at index '{index}' was '{old_byte}' but is now '{new_byte}'!"
-                        )
+                differences = {
+                    k: (self._data[k], parsed_data[k])
+                    for k in self._data.keys() & parsed_data.keys()
+                    if self._data[k] != parsed_data[k]
+                }
+                _LOGGER.debug(f"Value changes (key: (old, new)): {differences}")
 
         # Update internal data store
-        self._data = data
+        self._data = parsed_data
         self._last_data_timestamp = datetime.now()
 
     async def _process_telemetry_update(self, handle: int, data: bytearray) -> None:
@@ -486,6 +530,7 @@ class SolixBLEDevice:
 
         old_data = self._data
         self._parse_telemetry(data)
+        _LOGGER.debug(f"Parsed parameters from telemetry: {self._data}")
 
         # Print status update
         _LOGGER.debug(self)
@@ -665,7 +710,7 @@ class C300(SolixBLEDevice):
 
         :returns: Seconds remaining or default int value.
         """
-        return self._parse_int(6) if self._data is not None else DEFAULT_METADATA_INT
+        return self._parse_int("a2", begin=1)
 
     @property
     def ac_timer(self) -> datetime | None:
@@ -685,7 +730,7 @@ class C300(SolixBLEDevice):
 
         :returns: Seconds remaining or default int value.
         """
-        return self._parse_int(13) if self._data is not None else DEFAULT_METADATA_INT
+        return self._parse_int("a3", begin=1)
 
     @property
     def dc_timer(self) -> datetime | None:
@@ -710,16 +755,19 @@ class C300(SolixBLEDevice):
         :returns: Hours remaining or default float value.
         """
         return (
-            self._data[20] / 10.0 if self._data is not None else DEFAULT_METADATA_FLOAT
+            self._parse_int("a4", begin=1, end=2) / 10.0
+            if self._data is not None
+            else DEFAULT_METADATA_FLOAT
         )
 
+    # TODO Validate that it is actually days remaining!
     @property
     def days_remaining(self) -> int:
         """Time remaining to full/empty.
 
         :returns: Days remaining or default int value.
         """
-        return self._data[21] if self._data is not None else DEFAULT_METADATA_INT
+        return self._parse_int("a4", begin=2, end=3)
 
     @property
     def time_remaining(self) -> float:
@@ -754,7 +802,7 @@ class C300(SolixBLEDevice):
 
         :returns: Total AC power in or default int value.
         """
-        return self._parse_int(25) if self._data is not None else DEFAULT_METADATA_INT
+        return self._parse_int("a5", begin=1)
 
     @property
     def ac_power_out(self) -> int:
@@ -762,7 +810,7 @@ class C300(SolixBLEDevice):
 
         :returns: Total AC power out or default int value.
         """
-        return self._parse_int(30) if self._data is not None else DEFAULT_METADATA_INT
+        return self._parse_int("a6", begin=1)
 
     @property
     def usb_c1_power(self) -> int:
@@ -770,7 +818,7 @@ class C300(SolixBLEDevice):
 
         :returns: USB port C1 power or default int value.
         """
-        return self._data[35] if self._data is not None else DEFAULT_METADATA_INT
+        return self._parse_int("a7", begin=1)
 
     @property
     def usb_c2_power(self) -> int:
@@ -778,7 +826,7 @@ class C300(SolixBLEDevice):
 
         :returns: USB port C2 power or default int value.
         """
-        return self._data[40] if self._data is not None else DEFAULT_METADATA_INT
+        return self._parse_int("a8", begin=1)
 
     @property
     def usb_c3_power(self) -> int:
@@ -786,7 +834,7 @@ class C300(SolixBLEDevice):
 
         :returns: USB port C3 power or default int value.
         """
-        return self._data[45] if self._data is not None else DEFAULT_METADATA_INT
+        return self._parse_int("a9", begin=1)
 
     @property
     def usb_a1_power(self) -> int:
@@ -794,7 +842,7 @@ class C300(SolixBLEDevice):
 
         :returns: USB port A1 power or default int value.
         """
-        return self._data[50] if self._data is not None else DEFAULT_METADATA_INT
+        return self._parse_int("aa", begin=1)
 
     @property
     def dc_power_out(self) -> int:
@@ -802,7 +850,7 @@ class C300(SolixBLEDevice):
 
         :returns: DC power out or default int value.
         """
-        return self._data[55] if self._data is not None else DEFAULT_METADATA_INT
+        return self._parse_int("ab", begin=1)
 
     @property
     def solar_power_in(self) -> int:
@@ -810,7 +858,7 @@ class C300(SolixBLEDevice):
 
         :returns: Total solar power in or default int value.
         """
-        return self._parse_int(60) if self._data is not None else DEFAULT_METADATA_INT
+        return self._parse_int("ac", begin=1)
 
     @property
     def power_in(self) -> int:
@@ -818,7 +866,7 @@ class C300(SolixBLEDevice):
 
         :returns: Total power in or default int value.
         """
-        return self._parse_int(65) if self._data is not None else DEFAULT_METADATA_INT
+        return self._parse_int("ad", begin=1)
 
     @property
     def power_out(self) -> int:
@@ -826,18 +874,15 @@ class C300(SolixBLEDevice):
 
         :returns: Total power out or default int value.
         """
-        return self._parse_int(70) if self._data is not None else DEFAULT_METADATA_INT
+        return self._parse_int("ae", begin=1)
 
-    # TODO This is showing as INPUT when AC charging
     @property
-    def solar_port(self) -> PortStatus:
-        """Solar Port Status.
+    def charging_status(self) -> ChargingStatus:
+        """Charging status of the device.
 
-        :returns: Status of the solar port.
+        :returns: Status of charging.
         """
-        return PortStatus(
-            self._data[119] if self._data is not None else DEFAULT_METADATA_INT
-        )
+        return ChargingStatus(self._parse_int("ba", begin=1))
 
     @property
     def battery_percentage(self) -> int:
@@ -845,7 +890,7 @@ class C300(SolixBLEDevice):
 
         :returns: Percentage charge of battery or default int value.
         """
-        return self._data[131] if self._data is not None else DEFAULT_METADATA_INT
+        return self._parse_int("bb", begin=1)
 
     @property
     def usb_port_c1(self) -> PortStatus:
@@ -853,9 +898,7 @@ class C300(SolixBLEDevice):
 
         :returns: Status of the USB C1 port.
         """
-        return PortStatus(
-            self._data[139] if self._data is not None else DEFAULT_METADATA_INT
-        )
+        return PortStatus(self._parse_int("bd", begin=1))
 
     @property
     def usb_port_c2(self) -> PortStatus:
@@ -863,9 +906,7 @@ class C300(SolixBLEDevice):
 
         :returns: Status of the USB C2 port.
         """
-        return PortStatus(
-            self._data[143] if self._data is not None else DEFAULT_METADATA_INT
-        )
+        return PortStatus(self._parse_int("be", begin=1))
 
     @property
     def usb_port_c3(self) -> PortStatus:
@@ -873,9 +914,7 @@ class C300(SolixBLEDevice):
 
         :returns: Status of the USB C3 port.
         """
-        return PortStatus(
-            self._data[147] if self._data is not None else DEFAULT_METADATA_INT
-        )
+        return PortStatus(self._parse_int("bf", begin=1))
 
     @property
     def usb_port_a1(self) -> PortStatus:
@@ -883,9 +922,7 @@ class C300(SolixBLEDevice):
 
         :returns: Status of the USB A1 port.
         """
-        return PortStatus(
-            self._data[151] if self._data is not None else DEFAULT_METADATA_INT
-        )
+        return PortStatus(self._parse_int("c0", begin=1))
 
     @property
     def dc_port(self) -> PortStatus:
@@ -893,9 +930,7 @@ class C300(SolixBLEDevice):
 
         :returns: Status of the DC port.
         """
-        return PortStatus(
-            self._data[155] if self._data is not None else DEFAULT_METADATA_INT
-        )
+        return PortStatus(self._parse_int("c1", begin=1))
 
     @property
     def light(self) -> LightStatus:
@@ -903,9 +938,7 @@ class C300(SolixBLEDevice):
 
         :returns: Status of the light bar.
         """
-        return LightStatus(
-            self._data[231] if self._data is not None else DEFAULT_METADATA_INT
-        )
+        return LightStatus(self._parse_int("cf", begin=1))
 
     @property
     def serial_number(self) -> str:
@@ -913,11 +946,7 @@ class C300(SolixBLEDevice):
 
         :returns: The serial number of the device.
         """
-        return (
-            self._data[171:187].decode("ascii")
-            if self._data is not None
-            else DEFAULT_METADATA_STRING
-        )
+        return self._parse_string("c5", begin=1)
 
 
 class C1000(SolixBLEDevice):
@@ -930,7 +959,7 @@ class C1000(SolixBLEDevice):
 
         :returns: Seconds remaining or default int value.
         """
-        return self._parse_int(6) if self._data is not None else DEFAULT_METADATA_INT
+        return self._parse_int("a2", begin=1)
 
     @property
     def ac_timer(self) -> datetime | None:
@@ -955,16 +984,19 @@ class C1000(SolixBLEDevice):
         :returns: Hours remaining or default float value.
         """
         return (
-            self._data[20] / 10.0 if self._data is not None else DEFAULT_METADATA_FLOAT
+            self._parse_int("a4", begin=1, end=2) / 10.0
+            if self._data is not None
+            else DEFAULT_METADATA_FLOAT
         )
 
+    # TODO Validate that it is actually days remaining!
     @property
     def days_remaining(self) -> int:
         """Time remaining to full/empty.
 
         :returns: Days remaining or default int value.
         """
-        return self._data[21] if self._data is not None else DEFAULT_METADATA_INT
+        return self._parse_int("a4", begin=2, end=3)
 
     @property
     def time_remaining(self) -> float:
@@ -999,7 +1031,7 @@ class C1000(SolixBLEDevice):
 
         :returns: Total AC power in or default int value.
         """
-        return self._parse_int(25) if self._data is not None else DEFAULT_METADATA_INT
+        return self._parse_int("a5", begin=1)
 
     @property
     def ac_power_out(self) -> int:
@@ -1007,7 +1039,7 @@ class C1000(SolixBLEDevice):
 
         :returns: Total AC power out or default int value.
         """
-        return self._parse_int(30) if self._data is not None else DEFAULT_METADATA_INT
+        return self._parse_int("a6", begin=1)
 
     @property
     def usb_c1_power(self) -> int:
@@ -1015,7 +1047,7 @@ class C1000(SolixBLEDevice):
 
         :returns: USB port C1 power or default int value.
         """
-        return self._data[35] if self._data is not None else DEFAULT_METADATA_INT
+        return self._parse_int("a7", begin=1)
 
     @property
     def usb_c2_power(self) -> int:
@@ -1023,7 +1055,7 @@ class C1000(SolixBLEDevice):
 
         :returns: USB port C2 power or default int value.
         """
-        return self._data[40] if self._data is not None else DEFAULT_METADATA_INT
+        return self._parse_int("a8", begin=1)
 
     @property
     def usb_a1_power(self) -> int:
@@ -1031,7 +1063,7 @@ class C1000(SolixBLEDevice):
 
         :returns: USB port A1 power or default int value.
         """
-        return self._data[45] if self._data is not None else DEFAULT_METADATA_INT
+        return self._parse_int("a9", begin=1)
 
     @property
     def usb_a2_power(self) -> int:
@@ -1039,7 +1071,7 @@ class C1000(SolixBLEDevice):
 
         :returns: USB port A2 power or default int value.
         """
-        return self._data[50] if self._data is not None else DEFAULT_METADATA_INT
+        return self._parse_int("aa", begin=1)
 
     @property
     def solar_power_in(self) -> int:
@@ -1047,15 +1079,20 @@ class C1000(SolixBLEDevice):
 
         :returns: Total solar power in or default int value.
         """
-        return self._parse_int(70) if self._data is not None else DEFAULT_METADATA_INT
+        return self._parse_int("af", begin=1)
 
-    @property
-    def power_in(self) -> int:
-        """Total Power In.
+    # TODO Investigate!
+    # @property
+    # def power_in(self) -> int:
+    #     """Total Power In.
 
-        :returns: Total power in or default int value.
-        """
-        return self._parse_int(75) if self._data is not None else DEFAULT_METADATA_INT
+    #     :returns: Total power in or default int value.
+    #     """
+    #     return (
+    #         self._parse_int("b0", begin=1)
+    #         if self._data is not None
+    #         else DEFAULT_METADATA_INT
+    #     )
 
     @property
     def power_out(self) -> int:
@@ -1063,7 +1100,7 @@ class C1000(SolixBLEDevice):
 
         :returns: Total power out or default int value.
         """
-        return self._parse_int(80) if self._data is not None else DEFAULT_METADATA_INT
+        return self._parse_int("b0", begin=1)
 
     @property
     def software_version(self) -> str:
@@ -1074,7 +1111,7 @@ class C1000(SolixBLEDevice):
         if self._data is None:
             return DEFAULT_METADATA_STRING
 
-        return ".".join([digit for digit in str(self._parse_int(95))])
+        return ".".join([digit for digit in str(self._parse_int("b3", begin=1))])
 
     @property
     def software_version_expansion(self) -> str:
@@ -1087,7 +1124,7 @@ class C1000(SolixBLEDevice):
         if self._data is None:
             return DEFAULT_METADATA_STRING
 
-        return ".".join([digit for digit in str(self._parse_int(125))])
+        return ".".join([digit for digit in str(self._parse_int("b9", begin=1))])
 
     @property
     def software_version_controller(self) -> str:
@@ -1098,7 +1135,7 @@ class C1000(SolixBLEDevice):
         if self._data is None:
             return DEFAULT_METADATA_STRING
 
-        return ".".join([digit for digit in str(self._parse_int(130))])
+        return ".".join([digit for digit in str(self._parse_int("ba", begin=1))])
 
     @property
     def ac_on(self) -> bool:
@@ -1107,7 +1144,9 @@ class C1000(SolixBLEDevice):
         :returns: AC output on or default bool value.
         """
         return (
-            bool(self._data[135]) if self._data is not None else DEFAULT_METADATA_BOOL
+            bool(self._parse_int("bb", begin=1))
+            if self._data is not None
+            else DEFAULT_METADATA_BOOL
         )
 
     @property
@@ -1116,9 +1155,7 @@ class C1000(SolixBLEDevice):
 
         :returns: Status of the solar port.
         """
-        return PortStatus(
-            self._data[140] if self._data is not None else DEFAULT_METADATA_INT
-        )
+        return PortStatus(self._parse_int("bc", begin=1))
 
     @property
     def temperature(self) -> int:
@@ -1126,11 +1163,7 @@ class C1000(SolixBLEDevice):
 
         :returns: AC output on or default bool value.
         """
-        return (
-            int.from_bytes(self._data[144:145], byteorder="little")
-            if self._data is not None
-            else DEFAULT_METADATA_INT
-        )
+        return self._parse_int("bd", begin=1, signed=True)
 
     @property
     def battery_percentage(self) -> int:
@@ -1138,7 +1171,7 @@ class C1000(SolixBLEDevice):
 
         :returns: Percentage charge of battery or default int value.
         """
-        return self._data[160] if self._data is not None else DEFAULT_METADATA_INT
+        return self._parse_int("c1", begin=1)
 
     @property
     def serial_number(self) -> str:
@@ -1146,11 +1179,7 @@ class C1000(SolixBLEDevice):
 
         :returns: Device serial number or default str value.
         """
-        return (
-            self._parse_string(220, 16)
-            if self._data is not None
-            else DEFAULT_METADATA_STRING
-        )
+        return self._parse_string("d0", begin=1)
 
 
 class Generic(SolixBLEDevice):
