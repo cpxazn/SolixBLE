@@ -12,6 +12,12 @@ Welcome to SolixBLE's documentation!
     :target: https://github.com/psf/black
     :alt: Black
 
+Unofficial Python module for monitoring Anker Solix power stations
+
+ - 👌 Free software: MIT license
+ - 🍝 Sauce: https://github.com/flip-dots/SolixBLE
+ - 📦 PIP: https://pypi.org/project/SolixBLE/
+
 This Python module enables you to monitor Anker Solix devices directly
 from your computer, without the need for any cloud services or Anker app.
 It leverages the Bleak library to interact with Bluetooth Anker Solix power stations.
