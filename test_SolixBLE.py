@@ -94,7 +94,7 @@ MOCK_BLE_DEVICE = BLEDevice(MOCK_DEVICE_ADDRESS, MOCK_DEVICE_NAME, {})
                 "usb_c2_power": 0,
                 "usb_a1_power": 0,
                 "usb_a2_power": 0,
-                # "solar_power_in": 0,
+                "solar_power_in": 0,
                 "power_in": 584,
                 "power_out": 0,
                 "software_version": "1.6.6",

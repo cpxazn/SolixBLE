@@ -1079,7 +1079,7 @@ class C1000(SolixBLEDevice):
 
         :returns: Total solar power in or default int value.
         """
-        return self._parse_int("af", begin=1)
+        return self._parse_int("ae", begin=1)
 
     @property
     def power_in(self) -> int:
