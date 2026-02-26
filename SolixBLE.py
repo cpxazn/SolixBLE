@@ -1081,18 +1081,13 @@ class C1000(SolixBLEDevice):
         """
         return self._parse_int("af", begin=1)
 
-    # TODO Investigate!
-    # @property
-    # def power_in(self) -> int:
-    #     """Total Power In.
+    @property
+    def power_in(self) -> int:
+        """Total Power In.
 
-    #     :returns: Total power in or default int value.
-    #     """
-    #     return (
-    #         self._parse_int("b0", begin=1)
-    #         if self._data is not None
-    #         else DEFAULT_METADATA_INT
-    #     )
+        :returns: Total power in or default int value.
+        """
+        return self._parse_int("af", begin=1)
 
     @property
     def power_out(self) -> int:
