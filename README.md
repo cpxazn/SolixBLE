@@ -43,6 +43,7 @@ No pairing is required in order to receive telemetry data.
 - C1000(X)
 - C1000 Gen 2
 - F2000 (767 PowerHouse)
+- F3800
 - Maybe more? IDK
 
 
