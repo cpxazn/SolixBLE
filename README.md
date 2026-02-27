@@ -45,6 +45,7 @@ No pairing is required in order to receive telemetry data.
 - F2000 (767 PowerHouse)
 - F3800
 - Solarbank 2
+- Solarbank 3
 - Maybe more? IDK
 
 
