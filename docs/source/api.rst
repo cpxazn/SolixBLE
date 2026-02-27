@@ -13,6 +13,7 @@ the list of properties for that class.
    :hidden:
 
    c300
+   c300dc
    c1000
    generic
    enums

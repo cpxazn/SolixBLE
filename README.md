@@ -39,6 +39,7 @@ No pairing is required in order to receive telemetry data.
 ## Supported Devices
 
 - C300(X)
+- C300(X) DC
 - C1000(X)
 - Maybe more? IDK
 

@@ -5,7 +5,8 @@
 """
 
 from .c300 import C300
+from .c300dc import C300DC
 from .c1000 import C1000
 from .generic import Generic
 
-__all__ = ["C300", "C1000", "Generic"]
+__all__ = ["C300", "C300DC", "C1000", "Generic"]

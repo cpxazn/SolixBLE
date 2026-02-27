@@ -13,9 +13,9 @@ import sys
 from aioconsole import ainput
 from bleak import BLEDevice
 
-from SolixBLE import C300, C1000, Generic, SolixBLEDevice, discover_devices
+from SolixBLE import C300, C300DC, C1000, Generic, SolixBLEDevice, discover_devices
 
-MODELS = {"C300": C300, "C1000": C1000, "Unknown": Generic}
+MODELS = {"C300": C300, "C300DC": C300DC, "C1000": C1000, "Unknown": Generic}
 
 
 async def prompt_debug_mode():
@@ -128,4 +128,6 @@ async def main():
 
 
 if __name__ == "__main__":
+    asyncio.run(main())
+    asyncio.run(main())
     asyncio.run(main())
