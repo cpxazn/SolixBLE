@@ -26,11 +26,11 @@ class F2000(SolixBLEDevice):
         tested!
 
     .. note::
-        It should be possible to add more sensors. This has not been done because
-        in my testing d0, the serial number is at the end of a packet and if I
-        add sensors beyond that it might try to read beyond the end of the packet which
-        would result in an exception. I think devices with lots of telemetry values
-        split them up into multiple messages but I have not confirmed this yet.
+        It should be possible to add more sensors. I think devices with lots of
+        telemetry values split them up into multiple messages but I have not
+        played around with this yet. That and I am being a bit conservative with
+        these initial implementations, if you want more sensors and are willing
+        to help with testing feel free to raise a GitHub issue.
 
     """
 

@@ -20,6 +20,13 @@ class C1000G2(SolixBLEDevice):
         This model was added using data from anker-solix-api. It has not been
         tested!
 
+    .. note::
+        It should be possible to add more sensors. I think devices with lots of
+        telemetry values split them up into multiple messages but I have not
+        played around with this yet. That and I am being a bit conservative with
+        these initial implementations, if you want more sensors and are willing
+        to help with testing feel free to raise a GitHub issue.
+
     """
 
     _EXPECTED_TELEMETRY_LENGTH: int = 253
