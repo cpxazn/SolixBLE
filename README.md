@@ -6,6 +6,7 @@
 Python module for monitoring Anker Solix power stations over Bluetooth.
  - 👌 Free software: MIT license
  - 🍝 Sauce: https://github.com/flip-dots/SolixBLE
+ - 🖨️ Documentation: https://solixble.readthedocs.io/en/latest/
  - 📦 PIP: https://pypi.org/project/SolixBLE/
 
 
