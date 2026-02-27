@@ -268,7 +268,7 @@ class F3800(SolixBLEDevice):
 
         :returns: Percentage charge of battery or default int value.
         """
-        return self._parse_int("c0", begin=1, signed=True)
+        return self._parse_int("c0", begin=1)
 
     @property
     def max_battery_percentage(self) -> int:

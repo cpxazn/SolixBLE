@@ -117,7 +117,7 @@ class Solarbank2(SolixBLEDevice):
 
         :returns: Percentage charge of battery or default int value.
         """
-        return self._parse_int("ad", begin=1, signed=True)
+        return self._parse_int("ad", begin=1)
 
     @property
     def battery_charge_power(self) -> float:
