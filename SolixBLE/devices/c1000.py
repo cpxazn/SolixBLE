@@ -13,7 +13,7 @@ from ..const import (
     DEFAULT_METADATA_STRING,
 )
 from ..device import SolixBLEDevice
-from ..states import PortStatus
+from ..states import LightStatus, PortStatus
 
 
 class C1000(SolixBLEDevice):
@@ -297,3 +297,9 @@ class C1000(SolixBLEDevice):
     async def turn_ac_off(self) -> None:
         """Turn the AC output off."""
         await self._send_command(bytes.fromhex("404a"), bytes.fromhex("a10121a2020100"))
+
+    async def set_light_mode(self, mode: LightStatus) -> None:
+        """Set the light mode of the LED bar."""
+        await self._send_command(
+            bytes.fromhex("404f"), bytes.fromhex("a10121a20201") + mode.value.to_bytes()
+        )
