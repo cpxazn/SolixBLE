@@ -181,8 +181,12 @@ class SolixBLEDevice:
                         )
 
                     # Wait at this long to see if we get any response to
-                    # our initial request in stage 0
-                    await asyncio.sleep(NEGOTIATION_RESPONSE_TIMEOUT)
+                    # our initial request in stage 0. This weird layout
+                    # allows us to exit immediately when negotiation occurs
+                    for _ in range(0, NEGOTIATION_RESPONSE_TIMEOUT):
+                        await asyncio.sleep(1)
+                        if self.negotiated:
+                            break
 
         except TimeoutError:
             _LOGGER.exception(f"Timed out attempting to negotiate with '{self.name}'!")
