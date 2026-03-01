@@ -4,6 +4,7 @@
 
 """
 
+import logging
 from datetime import datetime, timedelta
 
 from ..const import (
@@ -21,6 +22,8 @@ CMD_LIGHT_MODE = "404f"
 PAYLOAD_AC_ON = "a10121a2020101"
 PAYLOAD_AC_OFF = "a10121a2020100"
 PAYLOAD_LIGHT_MODE = "a10121a20201"
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class C1000(SolixBLEDevice):
@@ -331,3 +334,35 @@ class C1000(SolixBLEDevice):
             cmd=bytes.fromhex(CMD_LIGHT_MODE),
             payload=bytes.fromhex(PAYLOAD_LIGHT_MODE) + mode.value.to_bytes(),
         )
+
+    async def get_status_update(self) -> dict[str, bytes]:
+        """Request and retrieve a status update from the device.
+
+        :raises ConnectionError: If not connected to device.
+        :raises TimeoutError If no response from device.
+        :raises BleakError: If command transmission fails.
+        :returns: Dictionary containing telemetry parameters.
+        """
+        await self._send_command(
+            cmd=bytes.fromhex("4040"),
+            payload=bytes.fromhex("a10121"),
+        )
+
+        packet_1 = await self._listen_for_packet(
+            bytes.fromhex("03010f"), bytes.fromhex("c840")
+        )
+        if not packet_1:
+            raise TimeoutError("Timed out waiting for packet 1!")
+
+        packet_2 = await self._listen_for_packet(
+            bytes.fromhex("03010f"), bytes.fromhex("c840")
+        )
+        if not packet_2:
+            raise TimeoutError("Timed out waiting for packet 2!")
+
+        # We need to ignore the first byte of each packet with these types
+        new_payload = packet_1[1:] + packet_2[1:]
+        decrypted_payload = self._decrypt_payload(new_payload)
+        parameters = self._parse_payload(decrypted_payload)
+        _LOGGER.debug(f"Parameters: {self._parameters_to_str(parameters, types=True)}")
+        return parameters
