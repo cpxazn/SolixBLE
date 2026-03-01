@@ -415,7 +415,7 @@ class SolixBLEDevice:
             }
             return json.dumps(with_types, indent=4, sort_keys=True)
         else:
-            return {k: v.hex() for k, v in parameters.items()}
+            return str({k: v.hex() for k, v in parameters.items()})
 
     def _log_diff(self, old: dict[str, bytes], new: dict[str, bytes]) -> None:
         """Log any differences between parameters."""
@@ -522,7 +522,8 @@ class SolixBLEDevice:
                             self._p46 = payload
 
                         # If we receive a big packet it invalidates the
-                        # last small one
+                        # last small one since the big one comes before
+                        # the small one
                         if len(payload) == 242:
                             self._p242 = payload
                             self._p46 = None
@@ -532,6 +533,12 @@ class SolixBLEDevice:
                             return
 
                         new_payload = self._p242 + self._p46
+
+                        # If we are accepting the new payload we invalidate
+                        # the partial payloads
+                        self._p242 = None
+                        self._p46 = None
+
                         _LOGGER.debug(f"Merged payload: {new_payload.hex()}")
                         decrypted_payload = self._decrypt_payload(new_payload)
                         _LOGGER.debug(f"Decrypted payload: {decrypted_payload.hex()}")
