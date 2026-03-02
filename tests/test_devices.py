@@ -4,6 +4,7 @@
 
 """
 
+import asyncio
 from typing import Any
 from unittest import mock
 
@@ -20,6 +21,7 @@ from SolixBLE import (
     SolixBLEDevice,
     const,
 )
+from tests.helpers import NEGOTIATION_RESPONSES, MockDevice
 
 MOCK_DEVICE_NAME = "Mock Device"
 MOCK_DEVICE_ADDRESS = "AA:BB:CC:DD:EE:FF"
@@ -51,7 +53,7 @@ MOCK_BLE_DEVICE = BLEDevice(MOCK_DEVICE_ADDRESS, MOCK_DEVICE_NAME, {})
                 "software_version_expansion": "0",
                 "software_version_controller": "1.6.6",
                 "ac_on": False,
-                "solar_port": PortStatus.NOT_CONNECTED,
+                # "solar_port": PortStatus.NOT_CONNECTED,
                 "temperature": 23,
                 "temperature_expansion": 0,
                 "battery_percentage": 87,
@@ -84,7 +86,7 @@ MOCK_BLE_DEVICE = BLEDevice(MOCK_DEVICE_ADDRESS, MOCK_DEVICE_NAME, {})
                 "software_version_expansion": "0",
                 "software_version_controller": "1.6.6",
                 "ac_on": True,
-                "solar_port": PortStatus.NOT_CONNECTED,
+                # "solar_port": PortStatus.NOT_CONNECTED,
                 "temperature": 26,
                 "temperature_expansion": 0,
                 "battery_percentage": 79,
@@ -117,7 +119,7 @@ MOCK_BLE_DEVICE = BLEDevice(MOCK_DEVICE_ADDRESS, MOCK_DEVICE_NAME, {})
                 "software_version_expansion": "0",
                 "software_version_controller": "1.6.6",
                 "ac_on": False,
-                "solar_port": PortStatus.INPUT,
+                # "solar_port": PortStatus.NOT_CONNECTED,
                 "temperature": 23,
                 "temperature_expansion": 0,
                 "battery_percentage": 24,
@@ -150,7 +152,7 @@ MOCK_BLE_DEVICE = BLEDevice(MOCK_DEVICE_ADDRESS, MOCK_DEVICE_NAME, {})
                 "software_version_expansion": "0",
                 "software_version_controller": "1.6.6",
                 "ac_on": False,
-                "solar_port": PortStatus.OUTPUT,
+                # "solar_port": PortStatus.INPUT,
                 "temperature": 23,
                 "temperature_expansion": 0,
                 "battery_percentage": 26,
@@ -183,7 +185,7 @@ MOCK_BLE_DEVICE = BLEDevice(MOCK_DEVICE_ADDRESS, MOCK_DEVICE_NAME, {})
                 "software_version_expansion": "0",
                 "software_version_controller": "1.6.6",
                 "ac_on": False,
-                "solar_port": PortStatus.NOT_CONNECTED,
+                # "solar_port": PortStatus.NOT_CONNECTED,
                 "temperature": 23,
                 "temperature_expansion": 0,
                 "battery_percentage": 23,
@@ -246,6 +248,7 @@ MOCK_BLE_DEVICE = BLEDevice(MOCK_DEVICE_ADDRESS, MOCK_DEVICE_NAME, {})
                 "solar_power_in": 0,
                 "power_in": 0,
                 "power_out": 85,
+                # "solar_port": PortStatus.NOT_CONNECTED,
                 "temperature": 36,
                 "charging_status": ChargingStatus.IDLE,
                 "battery_percentage": 100,
@@ -281,6 +284,7 @@ MOCK_BLE_DEVICE = BLEDevice(MOCK_DEVICE_ADDRESS, MOCK_DEVICE_NAME, {})
                 "power_in": 0,
                 "power_out": 140,
                 "software_version": "1.0.5.1",
+                # "solar_port": PortStatus.NOT_CONNECTED,
                 "temperature": 36,
                 "charging_status": ChargingStatus.DISCHARGING,
                 "battery_percentage": 100,
@@ -316,6 +320,7 @@ MOCK_BLE_DEVICE = BLEDevice(MOCK_DEVICE_ADDRESS, MOCK_DEVICE_NAME, {})
                 "power_in": 0,
                 "power_out": 144,
                 "software_version": "1.0.5.1",
+                # "solar_port": PortStatus.NOT_CONNECTED,
                 "temperature": 37,
                 "charging_status": ChargingStatus.DISCHARGING,
                 "battery_percentage": 93,
@@ -351,6 +356,7 @@ MOCK_BLE_DEVICE = BLEDevice(MOCK_DEVICE_ADDRESS, MOCK_DEVICE_NAME, {})
                 "power_in": 29,
                 "power_out": 90,
                 "software_version": "1.0.5.1",
+                # "solar_port": PortStatus.NOT_CONNECTED,
                 "temperature": 37,
                 "charging_status": ChargingStatus.DISCHARGING,
                 "battery_percentage": 90,
@@ -386,6 +392,7 @@ MOCK_BLE_DEVICE = BLEDevice(MOCK_DEVICE_ADDRESS, MOCK_DEVICE_NAME, {})
                 "power_in": 403,
                 "power_out": 88,
                 "software_version": "1.0.5.1",
+                # "solar_port": PortStatus.INPUT,
                 "temperature": 38,
                 "charging_status": ChargingStatus.CHARGING,
                 "battery_percentage": 89,
@@ -487,54 +494,31 @@ async def test_negotiation(
     :param packet_5: Packet sent by device in response to negotiation command 4.
     :param secret: The expected shared secret.
     """
-
-    # Mock the bleak client to allow us to simulate the packet exchange
-    mock_bleak_client = mock.AsyncMock()
-    with mock.patch(
-        "SolixBLE.device.establish_connection", return_value=mock_bleak_client
-    ):
+    async with MockDevice() as mock_bluetooth:
 
         device = device_class(MOCK_BLE_DEVICE)
 
-        async def write_gatt_char(
-            char_specifier: str, data: bytes, response: bool = False
-        ):
-            """
-            Mock the device responding to commands from the module by
-            mocking the write_gatt_char function of bleak.
-            """
-
-            # Check correct UUID is written to
-            assert char_specifier == const.UUID_COMMAND, "Module wrote to wrong UUID"
-
-            # Respond with appropriate packet that the device would send
-            match data.hex():
-
-                case const.NEGOTIATION_COMMAND_0:
-                    await device._process_notification(-1, bytes.fromhex(packet_1))
-
-                case const.NEGOTIATION_COMMAND_1:
-                    await device._process_notification(-1, bytes.fromhex(packet_2))
-
-                case const.NEGOTIATION_COMMAND_2:
-                    await device._process_notification(-1, bytes.fromhex(packet_3))
-
-                case const.NEGOTIATION_COMMAND_3:
-                    await device._process_notification(-1, bytes.fromhex(packet_4))
-
-                case const.NEGOTIATION_COMMAND_4:
-                    await device._process_notification(-1, bytes.fromhex(packet_5))
-
-                # The device does not usually respond to stage 5
-                case const.NEGOTIATION_COMMAND_5:
-                    return
-
-                # Check no other data is written
-                case _:
-                    assert False, "Module wrote unexpected data"
-
-        # Use mocked bleak function
-        mock_bleak_client.write_gatt_char.side_effect = write_gatt_char
+        mock_bluetooth.expect_ordered(
+            bytes.fromhex(const.NEGOTIATION_COMMAND_0),
+            bytes.fromhex(packet_1),
+        )
+        mock_bluetooth.expect_ordered(
+            bytes.fromhex(const.NEGOTIATION_COMMAND_1),
+            bytes.fromhex(packet_2),
+        )
+        mock_bluetooth.expect_ordered(
+            bytes.fromhex(const.NEGOTIATION_COMMAND_2),
+            bytes.fromhex(packet_3),
+        )
+        mock_bluetooth.expect_ordered(
+            bytes.fromhex(const.NEGOTIATION_COMMAND_3),
+            bytes.fromhex(packet_4),
+        )
+        mock_bluetooth.expect_ordered(
+            bytes.fromhex(const.NEGOTIATION_COMMAND_4),
+            bytes.fromhex(packet_5),
+        )
+        mock_bluetooth.expect_ordered(bytes.fromhex(const.NEGOTIATION_COMMAND_5), None)
 
         # Assert that the connection succeeds
         assert await device.connect(), "Expected connect to return True"
@@ -547,31 +531,7 @@ async def test_negotiation(
             bytes.fromhex(secret)[16:] == device._iv
         ), "Negotiated IV does not match expected"
 
-        # Assert that the correct calls are made in the correct order
-        mock_bleak_client.write_gatt_char.assert_has_calls(
-            [
-                mock.call(
-                    const.UUID_COMMAND,
-                    bytes.fromhex(const.NEGOTIATION_COMMAND_0),
-                    response=True,
-                ),
-                mock.call(
-                    const.UUID_COMMAND, bytes.fromhex(const.NEGOTIATION_COMMAND_1)
-                ),
-                mock.call(
-                    const.UUID_COMMAND, bytes.fromhex(const.NEGOTIATION_COMMAND_2)
-                ),
-                mock.call(
-                    const.UUID_COMMAND, bytes.fromhex(const.NEGOTIATION_COMMAND_3)
-                ),
-                mock.call(
-                    const.UUID_COMMAND, bytes.fromhex(const.NEGOTIATION_COMMAND_4)
-                ),
-                mock.call(
-                    const.UUID_COMMAND, bytes.fromhex(const.NEGOTIATION_COMMAND_5)
-                ),
-            ]
-        )
+        mock_bluetooth.check_assertions()
 
 
 @pytest.mark.parametrize(
@@ -763,11 +723,28 @@ async def test_telemetry_packet_processing(
     """
 
     device = SolixBLEDevice(BLEDevice)
-    device._shared_key = bytes.fromhex(secret)
-    device._iv = bytes.fromhex(iv)
 
-    for packet in packets:
-        await device._process_notification(-1, bytes.fromhex(packet))
+    async with MockDevice() as mock_bluetooth:
+
+        # We first expect a negotiation
+        for expected, response in NEGOTIATION_RESPONSES.items():
+            mock_bluetooth.expect_ordered(
+                bytes.fromhex(expected),
+                bytes.fromhex(response) if response is not None else None,
+            )
+
+        # We expect the negotiations to succeed
+        assert await device.connect(), "Expected connect to return True"
+        await asyncio.sleep(0.5)
+        assert device.connected, "Expected connected to be True"
+        assert device.negotiated, "Expected connected to be True"
+        mock_bluetooth.check_assertions()
+
+        device._shared_key = bytes.fromhex(secret)
+        device._iv = bytes.fromhex(iv)
+
+        for packet in packets:
+            await mock_bluetooth.send_data(bytes.fromhex(packet))
 
     device_parameters = (
         device._parameters_to_str(device._data) if device._data else None
