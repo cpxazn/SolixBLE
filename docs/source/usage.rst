@@ -12,7 +12,7 @@ understanding of the intended usage before diving into the documentation.
 General approach
 ----------------
 
-This module connects to a power station, negotiates a session with it,
+This module connects to a device, negotiates a session with it,
 and then periodically receives state updates from it and caches the state
 of the device. The cached information can be accessed using the properties
 of the class. In addition you can register callbacks to be run when the
@@ -27,8 +27,8 @@ state of the device changes.
 Functions
 ---------
 
-Finding a power station
-^^^^^^^^^^^^^^^^^^^^^^^
+Finding a device
+^^^^^^^^^^^^^^^^
 
 Anker power stations can be automatically detected by the 
 :py:meth:`discover_devices() <SolixBLE.discover_devices>`
@@ -48,42 +48,42 @@ in the Bluetooth service data. This method returns a list of
     via the `Bleak`_ library.
 
 
-Initializing a power station
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Initializing a device
+^^^^^^^^^^^^^^^^^^^^^
 
-In order to control a power station you must initialize a
-:py:class:`.SolixBLE.SolixBLEDevice` object of the correct type for that power station.
+In order to control/monitor a devive you must initialize a
+:py:class:`.SolixBLE.SolixBLEDevice` object of the correct type for that device.
 
 ``device = C1000(ble_device)``
 
 .. note::
 
     This code creates a :py:class:`.SolixBLE.C1000` object but does *not*
-    automatically connect to the power station.
+    automatically connect to the device.
 
 
-Connecting to a power station
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Connecting to a device
+^^^^^^^^^^^^^^^^^^^^^^
 
-The module will not automatically connect to a power station when a 
-power station object is initialized, you must call :py:meth:`.connect`
+The module will *not* automatically connect to device when a 
+device object is initialized, you must call :py:meth:`.connect`
 in order to establish a connection.
 
 On a successful *connection* (not instantiation) the program will
-negotiate and subscribe to future updates of the power stations state
-which may be accessed by the properties of the power station object.
+negotiate and subscribe to future updates of the devices state
+which may be accessed by the properties of the device object.
 
 .. note::
 
     On connection the properties of the device object will be at the
     default values until a telemetry message is received, this can take
-    some time (~15s) if the power station is idle. 
+    some time (~15s) if the device is idle. 
 
 
 Automatic Reconnection 
 ^^^^^^^^^^^^^^^^^^^^^^
 
-This module will attempt to automatically reconnect to a power station
+This module will attempt to automatically reconnect to a device
 if the connection is lost. If the module is able to reconnect within the
 disconnect timeout period no callbacks will be triggered, the cached data 
 remains until it is replaced and it will be as if nothing happened. The exception

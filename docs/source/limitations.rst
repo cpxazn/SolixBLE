@@ -12,17 +12,6 @@ connection back on by pressing the connection button causes it to disconnect fro
 It may be possible to send a special command to the power station to use both at the same time, but this has not been experimented with.
 
 
-Control
--------
-
-.. note::
-    It is not currently possible to control devices, only receive telemetry.
-    
-This functionality may be added in future, and work done by the `anker-solix-api <https://github.com/thomluther/anker-solix-api>`_
-project has decoded the format used by many devices and the Bluetooth and Cloud APIs use the same format.
-This is not currently being worked on though.
-
-
 Device support
 --------------
 
