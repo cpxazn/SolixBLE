@@ -9,9 +9,9 @@ from typing import Union
 
 import pytest
 from bleak import BLEDevice
+from helpers import NEGOTIATION_RESPONSES, MockDevice
 
 from SolixBLE import SolixBLEDevice, const
-from tests.helpers import NEGOTIATION_RESPONSES, MockDevice
 
 MOCK_DEVICE_NAME = "Mock Device"
 MOCK_DEVICE_ADDRESS = "AA:BB:CC:DD:EE:FF"
@@ -73,4 +73,6 @@ async def test_automatic_retry():
         await asyncio.sleep(10)
         assert device.connected, "Expected connected to be True"
         assert device.negotiated, "Expected connected to be True"
+        mock_bluetooth.check_assertions()
+        mock_bluetooth.check_assertions()
         mock_bluetooth.check_assertions()

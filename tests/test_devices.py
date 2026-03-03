@@ -10,6 +10,7 @@ from unittest import mock
 
 import pytest
 from bleak import BLEDevice
+from helpers import NEGOTIATION_RESPONSES, MockDevice
 
 from SolixBLE import (
     C300,
@@ -21,7 +22,6 @@ from SolixBLE import (
     SolixBLEDevice,
     const,
 )
-from tests.helpers import NEGOTIATION_RESPONSES, MockDevice
 
 MOCK_DEVICE_NAME = "Mock Device"
 MOCK_DEVICE_ADDRESS = "AA:BB:CC:DD:EE:FF"
@@ -750,4 +750,6 @@ async def test_telemetry_packet_processing(
         device._parameters_to_str(device._data) if device._data else None
     )
 
+    assert parameters == device_parameters, "Parameters do not match expected!"
+    assert parameters == device_parameters, "Parameters do not match expected!"
     assert parameters == device_parameters, "Parameters do not match expected!"
