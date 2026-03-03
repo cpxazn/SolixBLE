@@ -227,16 +227,15 @@ class C300(SolixBLEDevice):
         return ".".join([digit for digit in str(self._parse_int("b1", begin=1))])
 
     @property
-    def ac_on(self) -> bool:
-        """Is the AC output on.
+    def ac_output(self) -> PortStatus:
+        """AC Port Status.
 
-        :returns: AC output on or default bool value.
+        PortStatus.NOT_CONNECTED signifies off.
+        PortStatus.OUTPUT signifies on.
+
+        :returns: Status of the AC port.
         """
-        return (
-            bool(self._parse_int("b7", begin=1))
-            if self._data is not None
-            else DEFAULT_METADATA_BOOL
-        )
+        return PortStatus(self._parse_int("b7", begin=1))
 
     # TODO Fix. b8 is not solar charging status, its input when AC charging
     # @property
@@ -304,8 +303,11 @@ class C300(SolixBLEDevice):
         return PortStatus(self._parse_int("c0", begin=1))
 
     @property
-    def dc_port(self) -> PortStatus:
+    def dc_output(self) -> PortStatus:
         """DC Port Status.
+
+        PortStatus.NOT_CONNECTED signifies off.
+        PortStatus.OUTPUT signifies on.
 
         :returns: Status of the DC port.
         """

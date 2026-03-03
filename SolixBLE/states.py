@@ -13,13 +13,13 @@ class PortStatus(Enum):
     #: The status of the port is unknown.
     UNKNOWN = -1
 
-    #: The port is not connected.
+    #: The port is not connected / off.
     NOT_CONNECTED = 0
 
-    #: The port is an output.
+    #: The port is an output / on.
     OUTPUT = 1
 
-    #: The port is an input.
+    #: The port is an input / on.
     INPUT = 2
 
     @classmethod
