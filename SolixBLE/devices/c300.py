@@ -18,9 +18,13 @@ from ..states import ChargingStatus, LightStatus, PortStatus
 
 CMD_AC_OUTPUT = "404a"
 CMD_DC_OUTPUT = "404b"
+CMD_DISPLAY_ON_OFF = "4052"
+CMD_LIGHT_MODE = "404f"
+
 
 PAYLOAD_ON = "a10121a2020101"
 PAYLOAD_OFF = "a10121a2020100"
+PAYLOAD_LIGHT_MODE = "a10121a20201"
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -391,4 +395,39 @@ class C300(SolixBLEDevice):
         """
         await self._send_command(
             cmd=bytes.fromhex(CMD_DC_OUTPUT), payload=bytes.fromhex(PAYLOAD_OFF)
+        )
+
+    async def turn_display_on(self) -> None:
+        """Turn the display on.
+
+        :raises ConnectionError: If not connected to device.
+        :raises BleakError: If command transmission fails.
+        """
+        await self._send_command(
+            cmd=bytes.fromhex(CMD_DISPLAY_ON_OFF), payload=bytes.fromhex(PAYLOAD_ON)
+        )
+
+    async def turn_display_off(self) -> None:
+        """Turn the display off.
+
+        :raises ConnectionError: If not connected to device.
+        :raises BleakError: If command transmission fails.
+        """
+        await self._send_command(
+            cmd=bytes.fromhex(CMD_DISPLAY_ON_OFF), payload=bytes.fromhex(PAYLOAD_OFF)
+        )
+
+    async def set_light_mode(self, mode: LightStatus) -> None:
+        """Set the light mode of the LED bar.
+
+        :param mode: Mode to set light bar to.
+        :raises ValueError: If requested mode is invalid.
+        :raises ConnectionError: If not connected to device.
+        :raises BleakError: If command transmission fails.
+        """
+        if mode is LightStatus.UNKNOWN:
+            raise ValueError("You cannot set the light status to unknown")
+        await self._send_command(
+            cmd=bytes.fromhex(CMD_LIGHT_MODE),
+            payload=bytes.fromhex(PAYLOAD_LIGHT_MODE) + mode.value.to_bytes(),
         )
