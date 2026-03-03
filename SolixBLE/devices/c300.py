@@ -14,17 +14,18 @@ from ..const import (
     DEFAULT_METADATA_STRING,
 )
 from ..device import SolixBLEDevice
-from ..states import ChargingStatus, LightStatus, PortStatus
+from ..states import ChargingStatus, DisplayTimeout, LightStatus, PortStatus
 
 CMD_AC_OUTPUT = "404a"
 CMD_DC_OUTPUT = "404b"
 CMD_DISPLAY_ON_OFF = "4052"
 CMD_LIGHT_MODE = "404f"
-
+CMD_DISPLAY_TIMEOUT = "4046"
 
 PAYLOAD_ON = "a10121a2020101"
 PAYLOAD_OFF = "a10121a2020100"
 PAYLOAD_LIGHT_MODE = "a10121a20201"
+PAYLOAD_TIMEOUT_TIME = "a10121a20302"
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -430,4 +431,21 @@ class C300(SolixBLEDevice):
         await self._send_command(
             cmd=bytes.fromhex(CMD_LIGHT_MODE),
             payload=bytes.fromhex(PAYLOAD_LIGHT_MODE) + mode.value.to_bytes(),
+        )
+
+    async def set_display_timeout(self, timeout: DisplayTimeout) -> None:
+        """Set the status/mode of the LCD display.
+
+        :param mode: Mode/timeout to set display to (30s, 5m, 30m, etc).
+        :raises ValueError: If requested mode is invalid.
+        :raises ConnectionError: If not connected to device.
+        :raises BleakError: If command transmission fails.
+        """
+
+        if timeout is DisplayTimeout.UNKNOWN:
+            raise ValueError("You cannot set the display timeout to unknown")
+        await self._send_command(
+            cmd=bytes.fromhex(CMD_DISPLAY_TIMEOUT),
+            payload=bytes.fromhex(PAYLOAD_TIMEOUT_TIME)
+            + timeout.value.to_bytes(length=2, byteorder="little", signed=False),
         )
