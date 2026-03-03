@@ -16,6 +16,13 @@ from ..const import (
 from ..device import SolixBLEDevice
 from ..states import ChargingStatus, LightStatus, PortStatus
 
+CMD_AC_OUTPUT = "404a"
+CMD_DC_OUTPUT = "404b"
+
+PAYLOAD_ON = "a10121a2020101"
+PAYLOAD_OFF = "a10121a2020100"
+
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -345,3 +352,43 @@ class C300(SolixBLEDevice):
         parameters = self._parse_payload(decrypted_payload)
         _LOGGER.debug(f"Parameters: {self._parameters_to_str(parameters, types=True)}")
         return parameters
+
+    async def turn_ac_on(self) -> None:
+        """Turn the AC output on.
+
+        :raises ConnectionError: If not connected to device.
+        :raises BleakError: If command transmission fails.
+        """
+        await self._send_command(
+            cmd=bytes.fromhex(CMD_AC_OUTPUT), payload=bytes.fromhex(PAYLOAD_ON)
+        )
+
+    async def turn_ac_off(self) -> None:
+        """Turn the AC output off.
+
+        :raises ConnectionError: If not connected to device.
+        :raises BleakError: If command transmission fails.
+        """
+        await self._send_command(
+            cmd=bytes.fromhex(CMD_AC_OUTPUT), payload=bytes.fromhex(PAYLOAD_OFF)
+        )
+
+    async def turn_dc_on(self) -> None:
+        """Turn the DC output on.
+
+        :raises ConnectionError: If not connected to device.
+        :raises BleakError: If command transmission fails.
+        """
+        await self._send_command(
+            cmd=bytes.fromhex(CMD_DC_OUTPUT), payload=bytes.fromhex(PAYLOAD_ON)
+        )
+
+    async def turn_dc_off(self) -> None:
+        """Turn the DC output off.
+
+        :raises ConnectionError: If not connected to device.
+        :raises BleakError: If command transmission fails.
+        """
+        await self._send_command(
+            cmd=bytes.fromhex(CMD_DC_OUTPUT), payload=bytes.fromhex(PAYLOAD_OFF)
+        )
