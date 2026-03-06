@@ -968,10 +968,31 @@ class SolixBLEDevice:
         self._packet_futures: dict[bytes, list[asyncio.Future]] = {}
 
     def __str__(self) -> str:
-        """Return string representation of device state."""
+        """Return string representation of device state.
+
+        If any of the values fail to parse the error type will be
+        placed instead of the value.
+
+        Example: C300(
+          AC_OUTPUT: PortStatus.NOT_CONNECTED,
+          AC_POWER_IN: 0,
+          AC_OUTPUT: ValueError: 1280 is not a valid PortStatus,
+          ...
+        )
+        """
+
+        def _safe_get(name: str, prop: property) -> str:
+            try:
+                return prop.fget(self)
+            except Exception as e:
+                _LOGGER.exception(
+                    f"Failed to parse property '{name}' when stringifying class! Is there an undocumented state?"
+                )
+                return f"{type(e).__name__}: {e}"
+
         self_str = f"{self.__class__.__name__}(\n"
         for name, value in {
-            prop_name.upper(): prop.fget(self)
+            prop_name.upper(): _safe_get(prop_name, prop)
             for prop_name, prop in inspect.getmembers(type(self))
             if isinstance(prop, property)
         }.items():

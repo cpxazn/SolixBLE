@@ -5,6 +5,7 @@
 """
 
 import asyncio
+import logging
 from typing import Any
 from unittest import mock
 
@@ -751,5 +752,99 @@ async def test_telemetry_packet_processing(
     )
 
     assert parameters == device_parameters, "Parameters do not match expected!"
-    assert parameters == device_parameters, "Parameters do not match expected!"
-    assert parameters == device_parameters, "Parameters do not match expected!"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "device_class,payload,mapping,errors",
+    [
+        # Test that if the a4 value is missing (time remaining) that all the
+        # other values are still parsable
+        pytest.param(
+            C1000,
+            "a10131a2050300000000a3050300000000a503020000a603020000a703020000a803020000a903020000aa03020000ab03020000ac03020000ad03020000ae03020000af03020000b003020100b103020000b203020000b30302a600b403020000b503020000b60302ff01b703020000b803029a00b903020000ba0302a600bb03020000bc020100bd020117be020100bf020101c0020100c1020157c2020100c3020164c4020100c5020100c6020100c7020100c8020100c9020100ca020100cb020100cc020100cd020100ce020100cf020100d0110041504339464530453237333030323735e5020100",
+            {
+                "battery_percentage": 87,
+            },
+            ["Failed to parse property", "TIME_REMAINING: KeyError: 'a4'"],
+            id="c1000_missing_parameter",
+        ),
+        # Test that if the a2 value is too big (AC timer) that all the
+        # other values are still parsable
+        pytest.param(
+            C1000,
+            "a10131a207FFFFFFFFFFFFFFa3050300000000a403026b06a503020000a603020000a703020000a803020000a903020000aa03020000ab03020000ac03020000ad03020000ae03020000af03020000b003020100b103020000b203020000b30302a600b403020000b503020000b60302ff01b703020000b803029a00b903020000ba0302a600bb03020000bc020100bd020117be020100bf020101c0020100c1020157c2020100c3020164c4020100c5020100c6020100c7020100c8020100c9020100ca020100cb020100cc020100cd020100ce020100cf020100d0110041504339464530453237333030323735e5020100",
+            {
+                "battery_percentage": 87,
+            },
+            [
+                "Failed to parse property",
+                "AC_TIMER: OverflowError: Python int too large to convert to C int",
+            ],
+            id="c1000_invalid_int",
+        ),
+        # Test that if the d0 value is not a string format (serial number)
+        # that all the other values are still parsable
+        pytest.param(
+            C1000,
+            "a10131a2050300000000a3050300000000a403026b06a503020000a603020000a703020000a803020000a903020000aa03020000ab03020000ac03020000ad03020000ae03020000af03020000b003020100b103020000b203020000b30302a600b403020000b503020000b60302ff01b703020000b803029a00b903020000ba0302a600bb03020000bc020100bd020117be020100bf020101c0020100c1020157c2020100c3020164c4020100c5020100c6020100c7020100c8020100c9020100ca020100cb020100cc020100cd020100ce020100cf020100d01100FF504339464530453237333030323735e5020100",
+            {
+                "battery_percentage": 87,
+            },
+            [
+                "Failed to parse property",
+                "SERIAL_NUMBER: UnicodeDecodeError: 'ascii' codec can't decode byte 0xff in position 0: ordinal not in range(128)",
+            ],
+            id="c1000_invalid_string",
+        ),
+        # Test that if the bb value is not a valid port status (ac output)
+        # that all the other values are still parsable
+        pytest.param(
+            C1000,
+            "a10131a2050300000000a3050300000000a403026b06a503020000a603020000a703020000a803020000a903020000aa03020000ab03020000ac03020000ad03020000ae03020000af03020000b003020100b103020000b203020000b30302a600b403020000b503020000b60302ff01b703020000b803029a00b903020000ba0302a600bb03020005bc020100bd020117be020100bf020101c0020100c1020157c2020100c3020164c4020100c5020100c6020100c7020100c8020100c9020100ca020100cb020100cc020100cd020100ce020100cf020100d0110041504339464530453237333030323735e5020100",
+            {
+                "battery_percentage": 87,
+            },
+            [
+                "Failed to parse property",
+                "AC_OUTPUT: ValueError: 1280 is not a valid PortStatus",
+            ],
+            id="c1000_invalid_port_status",
+        ),
+    ],
+)
+async def test_bad_values(
+    caplog,
+    device_class: SolixBLEDevice,
+    payload: str,
+    mapping: dict[str, Any],
+    errors: list[str],
+) -> None:
+    """
+    Test that a payload with unexpected, invalid, or missing parameter values
+    does not result in the rest of the parameters failing to be updated.
+
+    Sometimes unexpected values are found (e.g it turns out the C300 has
+    another charging state I did not know about that I found when it
+    had a tiny solar input 0w), when this happens it should not
+    prevent all of the other values from being populated.
+
+    :param device_class: Class of device under test.
+    :param payload: The payload bytes from a telemetry packet.
+    :param mapping: Mapping of class properties to their expected value.
+    :param errors: List of expected error strings in logs.
+    """
+
+    caplog.set_level(logging.DEBUG)
+
+    device = device_class(MOCK_BLE_DEVICE)
+    parameters = device._parse_payload(bytes.fromhex(payload))
+    await device._process_telemetry(None, parameters)
+
+    for class_property, expected_value in mapping.items():
+        assert (
+            getattr(device, class_property) == expected_value
+        ), f"Mismatch for property '{class_property}'!"
+
+    for error_message in errors:
+        assert error_message in caplog.text
