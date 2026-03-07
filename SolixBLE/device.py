@@ -541,9 +541,14 @@ class SolixBLEDevice:
                         # If we receive a big packet it invalidates the
                         # last small one since the big one comes before
                         # the small one
-                        if len(payload) > 230:
+                        elif len(payload) > 230:
                             self._telemetry_payload_large = payload
                             self._telemetry_payload_small = None
+
+                        else:
+                            _LOGGER.warning(
+                                f"Telemetry payload has an unexpected length of {len(payload)}!"
+                            )
 
                         if (
                             self._telemetry_payload_small is None
