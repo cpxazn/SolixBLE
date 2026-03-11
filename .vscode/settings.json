@@ -8,7 +8,8 @@
     },
     "cSpell.enabled": true,
     "cSpell.words": [
-        "Solix"
+        "Solix",
+        "stringifying"
     ],
     "isort.args": [
         "--profile",
