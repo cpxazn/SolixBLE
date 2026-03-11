@@ -26,9 +26,9 @@ class PortStatus(Enum):
     def from_input_only(cls, value: int):
         """Custom factory for ports which only support being inputs."""
 
-        # If it would be an input (i.e 1) set it to output (i.e 2).
-        if value == PortStatus.INPUT:
-            value = PortStatus.OUTPUT
+        # If it would be an output (i.e 1) set it to input (i.e 2).
+        if value == PortStatus.OUTPUT:
+            value = PortStatus.INPUT
 
         return cls(value)
 
