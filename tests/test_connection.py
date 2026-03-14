@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 import pytest
 from bleak import BLEDevice
-from helpers import NEGOTIATION_RESPONSES, MockDevice
+from helpers import NEGOTIATION_RESPONSES_SOLIX, MockDevice
 
 from SolixBLE import SolixBLEDevice, const
 
@@ -39,10 +39,10 @@ async def test_automatic_retry():
             assert False
 
         # We first expect a negotiation
-        for expected, response in NEGOTIATION_RESPONSES.items():
+        for expected, response in NEGOTIATION_RESPONSES_SOLIX.items():
             mock_bluetooth.expect_ordered(
                 bytes.fromhex(expected),
-                bytes.fromhex(response) if response is not None else None,
+                [bytes.fromhex(x) for x in response],
             )
 
         # We expect the negotiations to succeed
@@ -56,10 +56,10 @@ async def test_automatic_retry():
         # silently reconnect
         device.add_callback(my_callback)
 
-        for expected, response in NEGOTIATION_RESPONSES.items():
+        for expected, response in NEGOTIATION_RESPONSES_SOLIX.items():
             mock_bluetooth.expect_ordered(
                 bytes.fromhex(expected),
-                bytes.fromhex(response) if response is not None else None,
+                [bytes.fromhex(x) for x in response],
             )
 
         # We then trigger a disconnect from the device
@@ -106,10 +106,10 @@ async def test_automatic_retry_timeout():
             num_calls = num_calls + 1
 
         # We first expect a negotiation
-        for expected, response in NEGOTIATION_RESPONSES.items():
+        for expected, response in NEGOTIATION_RESPONSES_SOLIX.items():
             mock_bluetooth.expect_ordered(
                 bytes.fromhex(expected),
-                bytes.fromhex(response) if response is not None else None,
+                [bytes.fromhex(x) for x in response],
             )
 
         # We expect the negotiations to succeed
@@ -137,10 +137,10 @@ async def test_automatic_retry_timeout():
         mock_bluetooth.allow_connect()
 
         # We then expect a renegotiation
-        for expected, response in NEGOTIATION_RESPONSES.items():
+        for expected, response in NEGOTIATION_RESPONSES_SOLIX.items():
             mock_bluetooth.expect_ordered(
                 bytes.fromhex(expected),
-                bytes.fromhex(response) if response is not None else None,
+                [bytes.fromhex(x) for x in response],
             )
 
         # We expect to have been automatically reconnected
@@ -188,10 +188,10 @@ async def test_disconnect(fast_timeouts, fast_sleep):
             assert False
 
         # We first expect a negotiation
-        for expected, response in NEGOTIATION_RESPONSES.items():
+        for expected, response in NEGOTIATION_RESPONSES_SOLIX.items():
             mock_bluetooth.expect_ordered(
                 bytes.fromhex(expected),
-                bytes.fromhex(response) if response is not None else None,
+                [bytes.fromhex(x) for x in response],
             )
 
         # We expect the negotiations to succeed

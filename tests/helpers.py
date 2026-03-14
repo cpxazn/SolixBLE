@@ -13,18 +13,51 @@ from unittest import mock
 
 from bleak import BleakClient
 
+import SolixBLE.prime_device as prime_device
 from SolixBLE import const
 
 _LOGGER = logging.getLogger(__name__)
 
 
-NEGOTIATION_RESPONSES: dict[str, Union[str, None]] = {
-    const.NEGOTIATION_COMMAND_0: "ff090e00030001080100a1010152",
-    const.NEGOTIATION_COMMAND_1: "ff091b00030001080300a10102a202fd00a30144a40101a50102ff",
-    const.NEGOTIATION_COMMAND_2: "ff093800030001082900a10103a2054553503332a307302e302e302e33a41041504339464530453237333030323735a506f49d8a104e0c9a",
-    const.NEGOTIATION_COMMAND_3: "ff090b00030001080500f2",
-    const.NEGOTIATION_COMMAND_4: "ff094d00030001082100a140b2ade5cac4f4a0c1307e44a0e9c5363cb21e4c8485ee324c23be949fa5d5929a75e57da3207c948a0c366ca9ea1ab2cb8e57d2d046a6ebefe5d96adb5d4cb35039",
-    const.NEGOTIATION_COMMAND_5: None,
+NEGOTIATION_RESPONSES_SOLIX: dict[str, list[str]] = {
+    const.NEGOTIATION_COMMAND_0: ["ff090e00030001080100a1010152"],
+    const.NEGOTIATION_COMMAND_1: [
+        "ff091b00030001080300a10102a202fd00a30144a40101a50102ff"
+    ],
+    const.NEGOTIATION_COMMAND_2: [
+        "ff093800030001082900a10103a2054553503332a307302e302e302e33a41041504339464530453237333030323735a506f49d8a104e0c9a"
+    ],
+    const.NEGOTIATION_COMMAND_3: ["ff090b00030001080500f2"],
+    const.NEGOTIATION_COMMAND_4: [
+        "ff094d00030001082100a140b2ade5cac4f4a0c1307e44a0e9c5363cb21e4c8485ee324c23be949fa5d5929a75e57da3207c948a0c366ca9ea1ab2cb8e57d2d046a6ebefe5d96adb5d4cb35039"
+    ],
+    const.NEGOTIATION_COMMAND_5: [],
+}
+
+NEGOTIATION_RESPONSES_PRIME: dict[str, list[str]] = {
+    prime_device.NEGOTIATION_COMMAND_0: [
+        "ff091e000300014801ab273ed3e27270c3f4d676ac7d69a00572793732a6"
+    ],
+    prime_device.NEGOTIATION_COMMAND_1: [
+        "ff092b000300014803ab273ed0443800b35db54c6d4a6ec3d48171a04ea7ebce8bf749e5e48c5d991a5e67"
+    ],
+    prime_device.NEGOTIATION_COMMAND_2: [
+        "ff0958000300014829ab273ed144326ada9fc66fa02508c5ddf549ade014d1eeb252fea1057c15b00985ab8a724fa3830e8e5b27acbaa1224fd2172c0439d27aaf9e62a66bda5c41c424f23c5c8d7df8d3b89422ddff2266"
+    ],
+    prime_device.NEGOTIATION_COMMAND_3: [
+        "ff091b000300014805abab709a595a803dd04246b78a927453cf65"
+    ],
+    prime_device.NEGOTIATION_COMMAND_4: [
+        "ff095d000300014821ab277fc01de436d341de628c79c1384d0aea25ce030622fa3ca0808ce5d1b7365ec1b1753a11ab78fba3ca07dda95cd57c93d1267b1222bef9908f7633a758ab924eba63ee01e715be5b9c3b082e6d81c2204241"
+    ],
+    prime_device.NEGOTIATION_COMMAND_5: [
+        "ff091b000300014822f60b45600839b2c171b33dc5790ed64ae32d"
+    ],
+    prime_device.NEGOTIATION_COMMAND_6: [
+        "ff091b000300014827f60b45600839b2c171b33dc5790ed64ae328"
+    ],
+    prime_device.NEGOTIATION_COMMAND_7: [],
+    prime_device.NEGOTIATION_COMMAND_8: [],
 }
 
 
@@ -41,7 +74,7 @@ class RequestResponse:
     The bytes expected by this request.
     """
 
-    response: Union[bytes, None]
+    response: list[bytes]
     """
     The bytes (if any) that should be sent in response to a matching request.
     """
@@ -167,7 +200,7 @@ class MockDevice:
                 callback(bleak_client)
 
     def expect_ordered(
-        self, value: Union[bytes, None] = None, response: Union[bytes, None] = None
+        self, value: Union[bytes, None] = None, response: list[bytes] = []
     ):
         """
         Expect an ordered request to be made to the mock device with
@@ -177,7 +210,7 @@ class MockDevice:
         raised.
 
         :param value: Expected bytes value or None to accept any.
-        :param response: Optional bytes value to respond with.
+        :param response: List of bytes to respond with.
         """
         self._assertions.append(RequestResponse(value, response, False))
 
@@ -194,7 +227,7 @@ class MockDevice:
             if client is self._current_mock_bleak_client:
                 n_callbacks.append(callback)
 
-    async def send_data(self, data: bytes) -> None:
+    async def send_data(self, data: list[bytes]) -> None:
         """
         Write the specified data as a notification to all clients
         registered callbacks.
@@ -204,11 +237,12 @@ class MockDevice:
 
         for client, _, n_callbacks in self._mock_bleak_clients:
             for callback in n_callbacks:
-                _LOGGER.debug(
-                    f"Mock device sending '{data.hex()}' to client '{client}' for callback '{callback}'..."
-                )
-                # Handle is not used
-                await callback(None, data)
+                for packet in data:
+                    _LOGGER.debug(
+                        f"Mock device sending '{packet.hex()}' to client '{client}' for callback '{callback}'..."
+                    )
+                    # Handle is not used
+                    await callback(None, packet)
 
                 # Wait between sending
                 await asyncio.sleep(0.1)

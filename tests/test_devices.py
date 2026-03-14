@@ -11,7 +11,7 @@ from unittest import mock
 
 import pytest
 from bleak import BLEDevice
-from helpers import NEGOTIATION_RESPONSES, MockDevice
+from helpers import NEGOTIATION_RESPONSES_PRIME, NEGOTIATION_RESPONSES_SOLIX, MockDevice
 
 from SolixBLE import (
     C300,
@@ -24,6 +24,8 @@ from SolixBLE import (
     SolixBLEDevice,
     const,
 )
+from SolixBLE.devices.prime_charger_160w import PrimeCharger160w
+from SolixBLE.prime_device import PrimeDevice
 
 MOCK_DEVICE_NAME = "Mock Device"
 MOCK_DEVICE_ADDRESS = "AA:BB:CC:DD:EE:FF"
@@ -438,6 +440,44 @@ MOCK_BLE_DEVICE = BLEDevice(MOCK_DEVICE_ADDRESS, MOCK_DEVICE_NAME, {})
             },
             id="c300_charging_ac_and_light",
         ),
+        pytest.param(
+            PrimeCharger160w,
+            "a10131a20302e805a303020000a4020100a5080400000000000000a6080400000000000000a7080400000000000000a8020103a9020150aa020100ab090400000f0f0f000000ac0d0401002c0100002c0100000300ad0d0401002c0100002c0100000300ae0d0401002c0100002c0100000300af020100b0020100b1020101b2020101b3020101b40d04fafffbfffafffbfffafffbffb50d04ffffffffffffffffffffffffe0050408000000e10b0480034b53000000000000fe050300000000",
+            {
+                "usb_port_c1": PortStatus.NOT_CONNECTED,
+                "usb_port_c1_current": 0.0,
+                "usb_port_c1_power": 0.0,
+                "usb_port_c1_voltage": 0.0,
+                "usb_port_c2": PortStatus.NOT_CONNECTED,
+                "usb_port_c2_current": 0.0,
+                "usb_port_c2_power": 0.0,
+                "usb_port_c2_voltage": 0.0,
+                "usb_port_c3": PortStatus.NOT_CONNECTED,
+                "usb_port_c3_current": 0.0,
+                "usb_port_c3_power": 0.0,
+                "usb_port_c3_voltage": 0.0,
+            },
+            id="prime_160w_idle",
+        ),
+        pytest.param(
+            PrimeCharger160w,
+            "a10131a20302e805a303020000a4020100a5080401e01374003700a608040108236c030b03a7080401d81364003200a8020103a9020150aa020100ab090400000f0f0f000000ac0d0401002c0100002c0100000000ad0d0401002c0100002c0100000203ae0d0401002c0100002c0100000000af020100b0020100b1020101b2020101b3020101b40d0400000000e804000000000000b50d04ffffffffffffffffffffffffe0050408000000e10b0480034b53000000000000fe050300000000",
+            {
+                "usb_port_c1": PortStatus.OUTPUT,
+                "usb_port_c1_current": 0.116,
+                "usb_port_c1_power": 0.55,
+                "usb_port_c1_voltage": 5.088,
+                "usb_port_c2": PortStatus.OUTPUT,
+                "usb_port_c2_current": 0.876,
+                "usb_port_c2_power": 7.79,
+                "usb_port_c2_voltage": 8.968,
+                "usb_port_c3": PortStatus.OUTPUT,
+                "usb_port_c3_current": 0.1,
+                "usb_port_c3_power": 0.5,
+                "usb_port_c3_voltage": 5.08,
+            },
+            id="prime_160w_all_three_charging",
+        ),
     ],
 )
 async def test_values(
@@ -537,7 +577,7 @@ async def test_negotiation(
         for packet in packets:
             mock_bluetooth.expect_ordered(
                 None,
-                bytes.fromhex(packet) if packet else None,
+                [bytes.fromhex(packet)] if packet else [],
             )
 
         # Assert that the connection succeeds
@@ -582,6 +622,13 @@ async def test_negotiation(
             "a10131a2020101a3020100a4020100a5020103a6020101e50201000505050505",
             id="c1000_unknown",
         ),
+        pytest.param(
+            PrimeCharger160w,
+            "57e9a883d95e4bc95b5be2baa1c366331abb9292585357de1f59c997254092ef1372bd5a26ef6b51d61dc87082ca8e7985aacad07f64181902c70c0502de2418e366f5f700b13049d9b857e95c85c66a32d64fcf31c8eead9e025ed69c1440170cca149e038501a9544b1baa044a6a65392e154357e137d917fc834e019012a01b9bd18d5ca7dc22bdb0204b0629b3f738f34bafdc26f6bb0781cec80fe547674a6a7a341a018ce3ac81e6eb6b5110d3311db692d174fe363acec5ba606a24b975c2bb2a43ddfe5351f54d9fcd295709",
+            "09486817d949a232b58b47a43cc72d045a617a26f3999d30e1d27e38eae52265",
+            "a10131a20302e805a303020000a4020100a508040150235704eb03a6080400000000000000a7080400000000000000a8020103a9020150aa020100ab090400000f0f0f000000ac0d0401002c0100002c0100000203ad0d0401002c0100002c0100000300ae0d0401002c0100002c0100000300af020100b0020100b1020101b2020101b3020101b40d04e8040000fafffbfffafffbffb50d04ffffffffffffffffffffffffe0050408000000e10b0480034b53000000000000fe050300000000",
+            id="prime_160w_telemetry",
+        ),
     ],
 )
 def test_payload_decryption(
@@ -606,10 +653,11 @@ def test_payload_decryption(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "packets, secret, parameters",
+    "device_class, packets, secret, parameters",
     [
         # Test that when there are no packets device._ data is None
         pytest.param(
+            SolixBLEDevice,
             [],
             "",
             None,
@@ -617,6 +665,7 @@ def test_payload_decryption(
         ),
         # Test that when there there are 0/2 required packets device._data is None
         pytest.param(
+            C1000,
             [
                 "ff092a0003010f440156ecb95eb746de03d40ee711ce99f42837a9554c6382d3f5298a3b0648d8536936"
             ],
@@ -626,46 +675,51 @@ def test_payload_decryption(
         ),
         # Test that when there there is only 1/2 required packets device._data is None
         pytest.param(
+            C1000,
             [
                 "ff09390003010fc40222788d127d8418b41a81719975719a26b32734ea4e44ce244683e31928bb9a2736f9ede939567cddce6b3fb0de68116c"
             ],
             "645ca871528991eb38ebb327a781e932b1d9d7a613b04c966b317db056c83428",
             None,
-            id="packet_1_missing",
+            id="solix_packet_1_missing",
         ),
         # Test that when there there is only 1/2 required packets device._data is None
         pytest.param(
+            C1000,
             [
                 "ff09fd0003010fc402121e0e23790307a57d4adabcd8d5ad56c3a9ea3cb5b222b0152438ccd3b980eda40fbde184fa66c80c3372dad179f11cad8799858ab95696e52c7e729af87c1106343ed5be9c042c8912b14f3a0d94b32afbed432e66616e1895ba0ff5e74a6da9401117070c926631e5d7886a07bec0de35aeb689e8bb289f1d7854143dc413f25d4b57d290ca4378cfb8efc275aa779145f98956e934eaced2d1f51cef7dd21a340318bfc14fb5f90ffd33e0e484175512af33593b1f91eb9801d7c2e1ac6d56e8fe7e8883d62226484ed6f1af711d042c5e3d0c186b3f2222293bc71ccf4a156a544d5171e90ee9b6b9b8f36ae058b96e3b88"
             ],
             "645ca871528991eb38ebb327a781e932b1d9d7a613b04c966b317db056c83428",
             None,
-            id="packet_2_missing",
+            id="solix_packet_2_missing",
         ),
         # Test that when the 1st packet arrives after the 2nd packet is it ignored
         pytest.param(
+            C1000,
             [
                 "ff09390003010fc40222788d127d8418b41a81719975719a26b32734ea4e44ce244683e31928bb9a2736f9ede939567cddce6b3fb0de68116c",
                 "ff09fd0003010fc402121e0e23790307a57d4adabcd8d5ad56c3a9ea3cb5b222b0152438ccd3b980eda40fbde184fa66c80c3372dad179f11cad8799858ab95696e52c7e729af87c1106343ed5be9c042c8912b14f3a0d94b32afbed432e66616e1895ba0ff5e74a6da9401117070c926631e5d7886a07bec0de35aeb689e8bb289f1d7854143dc413f25d4b57d290ca4378cfb8efc275aa779145f98956e934eaced2d1f51cef7dd21a340318bfc14fb5f90ffd33e0e484175512af33593b1f91eb9801d7c2e1ac6d56e8fe7e8883d62226484ed6f1af711d042c5e3d0c186b3f2222293bc71ccf4a156a544d5171e90ee9b6b9b8f36ae058b96e3b88",
             ],
             "645ca871528991eb38ebb327a781e932b1d9d7a613b04c966b317db056c83428",
             None,
-            id="both_packets_reversed",
+            id="solix_both_packets_reversed",
         ),
         # Test that when the packets arrive in order they are parsed and device._data is populated
         pytest.param(
+            C1000,
             [
                 "ff09fd0003010fc402121e0e23790307a57d4adabcd8d5ad56c3a9ea3cb5b222b0152438ccd3b980eda40fbde184fa66c80c3372dad179f11cad8799858ab95696e52c7e729af87c1106343ed5be9c042c8912b14f3a0d94b32afbed432e66616e1895ba0ff5e74a6da9401117070c926631e5d7886a07bec0de35aeb689e8bb289f1d7854143dc413f25d4b57d290ca4378cfb8efc275aa779145f98956e934eaced2d1f51cef7dd21a340318bfc14fb5f90ffd33e0e484175512af33593b1f91eb9801d7c2e1ac6d56e8fe7e8883d62226484ed6f1af711d042c5e3d0c186b3f2222293bc71ccf4a156a544d5171e90ee9b6b9b8f36ae058b96e3b88",
                 "ff09390003010fc40222788d127d8418b41a81719975719a26b32734ea4e44ce244683e31928bb9a2736f9ede939567cddce6b3fb0de68116c",
             ],
             "645ca871528991eb38ebb327a781e932b1d9d7a613b04c966b317db056c83428",
             """{'a1': '31', 'a2': '0300000000', 'a3': '0300000000', 'a4': '02720f', 'a5': '020000', 'a6': '020000', 'a7': '020000', 'a8': '020000', 'a9': '020000', 'aa': '020000', 'ab': '020000', 'ac': '020000', 'ad': '020000', 'ae': '020000', 'af': '020000', 'b0': '020100', 'b1': '020000', 'b2': '020100', 'b3': '02a600', 'b4': '020000', 'b5': '02ff01', 'b6': '02ff01', 'b7': '020000', 'b8': '029a00', 'b9': '020000', 'ba': '02a600', 'bb': '020000', 'bc': '0100', 'bd': '0122', 'be': '0100', 'bf': '0101', 'c0': '0100', 'c1': '0164', 'c2': '0100', 'c3': '0164', 'c4': '0100', 'c5': '0100', 'c6': '0100', 'c7': '0100', 'c8': '0100', 'c9': '0100', 'ca': '0100', 'cb': '0100', 'cc': '0100', 'cd': '0100', 'ce': '0100', 'cf': '0100', 'd0': '0041504339464530453237333030323735', 'e5': '0100', 'f7': '0301000000', 'f8': '040202010100010000000000000000000000000000', 'f9': '0102', 'fd': '0041313736315f33304168'}""",
-            id="both_packets",
+            id="solix_both_packets",
         ),
         # Test that when the packets arrive in order they are parsed and device._data is populated
         # but that the later packet does not result in any changes to the data because it is not
         # valid until the next telemetry packet arrives
         pytest.param(
+            C1000,
             [
                 "ff09fd0003010fc402121e0e23790307a57d4adabcd8d5ad56c3a9ea3cb5b222b0152438ccd3b980eda40fbde184fa66c80c3372dad179f11cad8799858ab95696e52c7e729af87c1106343ed5be9c042c8912b14f3a0d94b32afbed432e66616e1895ba0ff5e74a6da9401117070c926631e5d7886a07bec0de35aeb689e8bb289f1d7854143dc413f25d4b57d290ca4378cfb8efc275aa779145f98956e934eaced2d1f51cef7dd21a340318bfc14fb5f90ffd33e0e484175512af33593b1f91eb9801d7c2e1ac6d56e8fe7e8883d62226484ed6f1af711d042c5e3d0c186b3f2222293bc71ccf4a156a544d5171e90ee9b6b9b8f36ae058b96e3b88",
                 "ff09390003010fc40222788d127d8418b41a81719975719a26b32734ea4e44ce244683e31928bb9a2736f9ede939567cddce6b3fb0de68116c",
@@ -673,12 +727,13 @@ def test_payload_decryption(
             ],
             "645ca871528991eb38ebb327a781e932b1d9d7a613b04c966b317db056c83428",
             """{'a1': '31', 'a2': '0300000000', 'a3': '0300000000', 'a4': '02720f', 'a5': '020000', 'a6': '020000', 'a7': '020000', 'a8': '020000', 'a9': '020000', 'aa': '020000', 'ab': '020000', 'ac': '020000', 'ad': '020000', 'ae': '020000', 'af': '020000', 'b0': '020100', 'b1': '020000', 'b2': '020100', 'b3': '02a600', 'b4': '020000', 'b5': '02ff01', 'b6': '02ff01', 'b7': '020000', 'b8': '029a00', 'b9': '020000', 'ba': '02a600', 'bb': '020000', 'bc': '0100', 'bd': '0122', 'be': '0100', 'bf': '0101', 'c0': '0100', 'c1': '0164', 'c2': '0100', 'c3': '0164', 'c4': '0100', 'c5': '0100', 'c6': '0100', 'c7': '0100', 'c8': '0100', 'c9': '0100', 'ca': '0100', 'cb': '0100', 'cc': '0100', 'cd': '0100', 'ce': '0100', 'cf': '0100', 'd0': '0041504339464530453237333030323735', 'e5': '0100', 'f7': '0301000000', 'f8': '040202010100010000000000000000000000000000', 'f9': '0102', 'fd': '0041313736315f33304168'}""",
-            id="both_packets_later_invalidates",
+            id="solix_both_packets_later_invalidates",
         ),
         # Test that when the packets arrive in order they are parsed and device._data is populated
         # but that the later packet does not result in any changes to the data because it is out
         # of order
         pytest.param(
+            C1000,
             [
                 "ff09fd0003010fc402121e0e23790307a57d4adabcd8d5ad56c3a9ea3cb5b222b0152438ccd3b980eda40fbde184fa66c80c3372dad179f11cad8799858ab95696e52c7e729af87c1106343ed5be9c042c8912b14f3a0d94b32afbed432e66616e1895ba0ff5e74a6da9401117070c926631e5d7886a07bec0de35aeb689e8bb289f1d7854143dc413f25d4b57d290ca4378cfb8efc275aa779145f98956e934eaced2d1f51cef7dd21a340318bfc14fb5f90ffd33e0e484175512af33593b1f91eb9801d7c2e1ac6d56e8fe7e8883d62226484ed6f1af711d042c5e3d0c186b3f2222293bc71ccf4a156a544d5171e90ee9b6b9b8f36ae058b96e3b88",
                 "ff09390003010fc40222788d127d8418b41a81719975719a26b32734ea4e44ce244683e31928bb9a2736f9ede939567cddce6b3fb0de68116c",
@@ -687,12 +742,13 @@ def test_payload_decryption(
             ],
             "645ca871528991eb38ebb327a781e932b1d9d7a613b04c966b317db056c83428",
             """{'a1': '31', 'a2': '0300000000', 'a3': '0300000000', 'a4': '02720f', 'a5': '020000', 'a6': '020000', 'a7': '020000', 'a8': '020000', 'a9': '020000', 'aa': '020000', 'ab': '020000', 'ac': '020000', 'ad': '020000', 'ae': '020000', 'af': '020000', 'b0': '020100', 'b1': '020000', 'b2': '020100', 'b3': '02a600', 'b4': '020000', 'b5': '02ff01', 'b6': '02ff01', 'b7': '020000', 'b8': '029a00', 'b9': '020000', 'ba': '02a600', 'bb': '020000', 'bc': '0100', 'bd': '0122', 'be': '0100', 'bf': '0101', 'c0': '0100', 'c1': '0164', 'c2': '0100', 'c3': '0164', 'c4': '0100', 'c5': '0100', 'c6': '0100', 'c7': '0100', 'c8': '0100', 'c9': '0100', 'ca': '0100', 'cb': '0100', 'cc': '0100', 'cd': '0100', 'ce': '0100', 'cf': '0100', 'd0': '0041504339464530453237333030323735', 'e5': '0100', 'f7': '0301000000', 'f8': '040202010100010000000000000000000000000000', 'f9': '0102', 'fd': '0041313736315f33304168'}""",
-            id="both_packets_later_out_of_order",
+            id="solix_both_packets_later_out_of_order",
         ),
         # Test that when the packets arrive in order they are parsed and device._data is populated
         # but that the later non-telemetry packet does not result in any changes because it is
         # not a telemetry packet
         pytest.param(
+            C1000,
             [
                 "ff09fd0003010fc402121e0e23790307a57d4adabcd8d5ad56c3a9ea3cb5b222b0152438ccd3b980eda40fbde184fa66c80c3372dad179f11cad8799858ab95696e52c7e729af87c1106343ed5be9c042c8912b14f3a0d94b32afbed432e66616e1895ba0ff5e74a6da9401117070c926631e5d7886a07bec0de35aeb689e8bb289f1d7854143dc413f25d4b57d290ca4378cfb8efc275aa779145f98956e934eaced2d1f51cef7dd21a340318bfc14fb5f90ffd33e0e484175512af33593b1f91eb9801d7c2e1ac6d56e8fe7e8883d62226484ed6f1af711d042c5e3d0c186b3f2222293bc71ccf4a156a544d5171e90ee9b6b9b8f36ae058b96e3b88",
                 "ff09390003010fc40222788d127d8418b41a81719975719a26b32734ea4e44ce244683e31928bb9a2736f9ede939567cddce6b3fb0de68116c",
@@ -700,11 +756,12 @@ def test_payload_decryption(
             ],
             "645ca871528991eb38ebb327a781e932b1d9d7a613b04c966b317db056c83428",
             """{'a1': '31', 'a2': '0300000000', 'a3': '0300000000', 'a4': '02720f', 'a5': '020000', 'a6': '020000', 'a7': '020000', 'a8': '020000', 'a9': '020000', 'aa': '020000', 'ab': '020000', 'ac': '020000', 'ad': '020000', 'ae': '020000', 'af': '020000', 'b0': '020100', 'b1': '020000', 'b2': '020100', 'b3': '02a600', 'b4': '020000', 'b5': '02ff01', 'b6': '02ff01', 'b7': '020000', 'b8': '029a00', 'b9': '020000', 'ba': '02a600', 'bb': '020000', 'bc': '0100', 'bd': '0122', 'be': '0100', 'bf': '0101', 'c0': '0100', 'c1': '0164', 'c2': '0100', 'c3': '0164', 'c4': '0100', 'c5': '0100', 'c6': '0100', 'c7': '0100', 'c8': '0100', 'c9': '0100', 'ca': '0100', 'cb': '0100', 'cc': '0100', 'cd': '0100', 'ce': '0100', 'cf': '0100', 'd0': '0041504339464530453237333030323735', 'e5': '0100', 'f7': '0301000000', 'f8': '040202010100010000000000000000000000000000', 'f9': '0102', 'fd': '0041313736315f33304168'}""",
-            id="both_packets_irrelevant_ignored",
+            id="solix_both_packets_irrelevant_ignored",
         ),
         # Test that when the packets arrive in order they are parsed and device._data is populated
         # and that once both of the next packets are received the device._data changes.
         pytest.param(
+            C1000,
             [
                 "ff09fd0003010fc402121e0e23790307a57d4adabcd8d5ad56c3a9ea3cb5b222b0152438ccd3b980eda40fbde184fa66c80c3372dad179f11cad8799858ab95696e52c7e729af87c1106343ed5be9c042c8912b14f3a0d94b32afbed432e66616e1895ba0ff5e74a6da9401117070c926631e5d7886a07bec0de35aeb689e8bb289f1d7854143dc413f25d4b57d290ca4378cfb8efc275aa779145f98956e934eaced2d1f51cef7dd21a340318bfc14fb5f90ffd33e0e484175512af33593b1f91eb9801d7c2e1ac6d56e8fe7e8883d62226484ed6f1af711d042c5e3d0c186b3f2222293bc71ccf4a156a544d5171e90ee9b6b9b8f36ae058b96e3b88",
                 "ff09390003010fc40222788d127d8418b41a81719975719a26b32734ea4e44ce244683e31928bb9a2736f9ede939567cddce6b3fb0de68116c",
@@ -713,31 +770,51 @@ def test_payload_decryption(
             ],
             "645ca871528991eb38ebb327a781e932b1d9d7a613b04c966b317db056c83428",
             """{'a1': '31', 'a2': '0300000000', 'a3': '0300000000', 'a4': '02d80e', 'a5': '020000', 'a6': '020000', 'a7': '020000', 'a8': '020000', 'a9': '020000', 'aa': '020000', 'ab': '020000', 'ac': '020000', 'ad': '020000', 'ae': '020000', 'af': '020000', 'b0': '020100', 'b1': '020000', 'b2': '020100', 'b3': '02a600', 'b4': '020000', 'b5': '02ff01', 'b6': '02ff01', 'b7': '020000', 'b8': '029a00', 'b9': '020000', 'ba': '02a600', 'bb': '020100', 'bc': '0100', 'bd': '0122', 'be': '0100', 'bf': '0101', 'c0': '0100', 'c1': '0164', 'c2': '0100', 'c3': '0164', 'c4': '0100', 'c5': '0100', 'c6': '0100', 'c7': '0100', 'c8': '0100', 'c9': '0100', 'ca': '0100', 'cb': '0100', 'cc': '0100', 'cd': '0100', 'ce': '0100', 'cf': '0100', 'd0': '0041504339464530453237333030323735', 'e5': '0100', 'f7': '0301000000', 'f8': '040202010100010000000000000000000000000000', 'f9': '0102', 'fd': '0041313736315f33304168'}""",
-            id="both_packets_with_update",
+            id="solix_both_packets_with_update",
+        ),
+        # Test an Anker Prime device (single payload device) with a single telemetry packet.
+        pytest.param(
+            PrimeCharger160w,
+            [
+                "ff09da00030111430057e9a883d95e4bc95b5be2baa1c366331abb929258ab5077108dc197254092ef1372bd5a26ef6b51d61dc87082ca8e7985aacad07f64181902c70c0502de2418e366f5f700b13049d9b857e95c85c66a32d64fcf31c8eead9e025ed69c1440170cca149e038501a9544b1baa044a6a65392e154357e137d917fc834e019012a01b9bd18d5ca7dc22bdb0204b0629b3f738f34bafdc26f6bb0781cec80fe547674a6a7a341a018ce3ac81e6eb6b5110d3311db692d174fe363acec5ba606a24b92dcc95a6cdd8fee1843a26694ddd23ac74"
+            ],
+            "09486817d949a232b58b47a43cc72d045a617a26f3999d30e1d27e38eae52265",
+            """{'a1': '31', 'a2': '02e805', 'a3': '020000', 'a4': '0100', 'a5': '0401a824fe0b3f0b', 'a6': '0400000000000000', 'a7': '0400000000000000', 'a8': '0103', 'a9': '0150', 'aa': '0100', 'ab': '0400000f0f0f000000', 'ac': '0401002c0100002c0100000203', 'ad': '0401002c0100002c0100000300', 'ae': '0401002c0100002c0100000300', 'af': '0100', 'b0': '0100', 'b1': '0101', 'b2': '0101', 'b3': '0101', 'b4': '04e8040000fafffbfffafffbff', 'b5': '04ffffffffffffffffffffffff', 'e0': '0408000000', 'e1': '0480034b53000000000000', 'fe': '0300000000'}""",
+            id="prime_telemetry_packet",
         ),
     ],
 )
 async def test_telemetry_packet_processing(
-    packets: list[str], secret: str, parameters: str | None
+    device_class: SolixBLEDevice,
+    packets: list[str],
+    secret: str,
+    parameters: str | None,
 ):
     """
     Test the _process_notification function when processing telemetry
     packets end to end.
 
+    :param device_class: Class of device under test.
     :param packets: List of packets to send to device.
     :param secret: Shared secret used as AES key and IV.
     :param parameters: Expected parameters in string form.
     """
 
-    device = SolixBLEDevice(BLEDevice)
+    device = device_class(BLEDevice)
+
+    negotiation_responses = (
+        NEGOTIATION_RESPONSES_PRIME
+        if issubclass(device_class, PrimeDevice)
+        else NEGOTIATION_RESPONSES_SOLIX
+    )
 
     async with MockDevice() as mock_bluetooth:
 
         # We first expect a negotiation
-        for expected, response in NEGOTIATION_RESPONSES.items():
+        for expected, response in negotiation_responses.items():
             mock_bluetooth.expect_ordered(
                 bytes.fromhex(expected),
-                bytes.fromhex(response) if response is not None else None,
+                [bytes.fromhex(x) for x in response],
             )
 
         # We expect the negotiations to succeed
@@ -750,7 +827,7 @@ async def test_telemetry_packet_processing(
         device._shared_secret = bytes.fromhex(secret)
 
         for packet in packets:
-            await mock_bluetooth.send_data(bytes.fromhex(packet))
+            await mock_bluetooth.send_data([bytes.fromhex(packet)])
 
     device_parameters = (
         device._parameters_to_str(device._data) if device._data else None
