@@ -6,7 +6,7 @@
 
 import logging
 
-from Cryptodome.Cipher import AES
+from Crypto.Cipher import AES
 from cryptography.hazmat.primitives.asymmetric.ec import (
     ECDH,
     SECP256R1,

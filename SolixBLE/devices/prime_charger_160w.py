@@ -26,7 +26,7 @@ class PrimeCharger160w(PrimeDevice):
         return PortStatus(self._parse_int("a5", begin=1, end=2))
 
     @property
-    def usb_port_c1_voltage(self) -> float:
+    def usb_c1_voltage(self) -> float:
         """USB C1 Port voltage (V).
 
         :returns: Voltage of the USB C1 port or default float value.
@@ -37,7 +37,7 @@ class PrimeCharger160w(PrimeDevice):
         return self._parse_int("a5", begin=2, end=4) / 1000.0
 
     @property
-    def usb_port_c1_current(self) -> float:
+    def usb_c1_current(self) -> float:
         """USB C1 Port current (A).
 
         :returns: Current of the USB C1 port or default float value.
@@ -48,7 +48,7 @@ class PrimeCharger160w(PrimeDevice):
         return self._parse_int("a5", begin=4, end=6) / 1000.0
 
     @property
-    def usb_port_c1_power(self) -> float:
+    def usb_c1_power(self) -> float:
         """USB C1 Port power (W).
 
         :returns: Power of the USB C1 port or default float value.
@@ -67,7 +67,7 @@ class PrimeCharger160w(PrimeDevice):
         return PortStatus(self._parse_int("a6", begin=1, end=2))
 
     @property
-    def usb_port_c2_voltage(self) -> float:
+    def usb_c2_voltage(self) -> float:
         """USB C2 Port voltage (V).
 
         :returns: Voltage of the USB C2 port or default float value.
@@ -78,7 +78,7 @@ class PrimeCharger160w(PrimeDevice):
         return self._parse_int("a6", begin=2, end=4) / 1000.0
 
     @property
-    def usb_port_c2_current(self) -> float:
+    def usb_c2_current(self) -> float:
         """USB C2 Port current (A).
 
         :returns: Current of the USB C2 port or default float value.
@@ -89,7 +89,7 @@ class PrimeCharger160w(PrimeDevice):
         return self._parse_int("a6", begin=4, end=6) / 1000.0
 
     @property
-    def usb_port_c2_power(self) -> float:
+    def usb_c2_power(self) -> float:
         """USB C2 Port power (W).
 
         :returns: Power of the USB C2 port or default float value.
@@ -108,7 +108,7 @@ class PrimeCharger160w(PrimeDevice):
         return PortStatus(self._parse_int("a7", begin=1, end=2))
 
     @property
-    def usb_port_c3_voltage(self) -> float:
+    def usb_c3_voltage(self) -> float:
         """USB C3 Port voltage (V).
 
         :returns: Voltage of the USB C3 port or default float value.
@@ -119,7 +119,7 @@ class PrimeCharger160w(PrimeDevice):
         return self._parse_int("a7", begin=2, end=4) / 1000.0
 
     @property
-    def usb_port_c3_current(self) -> float:
+    def usb_c3_current(self) -> float:
         """USB C3 Port current (A).
 
         :returns: Current of the USB C3 port or default float value.
@@ -130,7 +130,7 @@ class PrimeCharger160w(PrimeDevice):
         return self._parse_int("a7", begin=4, end=6) / 1000.0
 
     @property
-    def usb_port_c3_power(self) -> float:
+    def usb_c3_power(self) -> float:
         """USB C3 Port power (W).
 
         :returns: Power of the USB C3 port or default float value.
