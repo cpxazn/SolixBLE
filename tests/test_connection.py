@@ -10,9 +10,9 @@ from unittest.mock import patch
 
 import pytest
 from bleak import BLEDevice
-from helpers import NEGOTIATION_RESPONSES_SOLIX, MockDevice
 
 from SolixBLE import SolixBLEDevice, const
+from tests.helpers import NEGOTIATION_RESPONSES_SOLIX, MockDevice
 
 MOCK_DEVICE_NAME = "Mock Device"
 MOCK_DEVICE_ADDRESS = "AA:BB:CC:DD:EE:FF"
