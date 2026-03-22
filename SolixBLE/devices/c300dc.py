@@ -290,7 +290,7 @@ class C300DC(SolixBLEDevice):
     def device_overload(self) -> PortOverload:
         """Device overload status.
 
-        :returns: Device overload status or default in value.
+        :returns: Device overload status or default int value.
         """
         return PortOverload(self._parse_int("c1", begin=1))
 
@@ -306,7 +306,7 @@ class C300DC(SolixBLEDevice):
     def device_timeout(self) -> int:
         """Configured device timeout in minutes.
 
-        :returns: Configured device timeout or default in value.
+        :returns: Configured device timeout or default int value.
         """
         return self._parse_int("c4", begin=1)
 
@@ -314,7 +314,7 @@ class C300DC(SolixBLEDevice):
     def display_timeout(self) -> int:
         """Configured display timeout in seconds.
 
-        :returns: Configured display timeout or default in value.
+        :returns: Configured display timeout or default int value.
         """
         return self._parse_int("c5", begin=1)
 
@@ -322,7 +322,7 @@ class C300DC(SolixBLEDevice):
     def display_mode(self) -> int:
         """Configured display mode.
 
-        :returns: Configured display mode or default in value.
+        :returns: Configured display mode or default int value.
         """
         return self._parse_int("c7", begin=1)
 
@@ -338,7 +338,7 @@ class C300DC(SolixBLEDevice):
     def temperature_unit(self) -> TemperatureUnit:
         """Configured temperature unit (returned temperature is always in degrees C).
 
-        :returns: Configured temperature unit or default in value.
+        :returns: Configured temperature unit or default int value.
         """
         return TemperatureUnit(self._parse_int("c9", begin=1))
 
@@ -358,7 +358,7 @@ class C300DC(SolixBLEDevice):
     def light_timeout(self) -> int:
         """Configured light timeout in minutes.
 
-        :returns: Configured light timeout or default in value.
+        :returns: Configured light timeout or default int value.
         """
         return self._parse_int("cb", begin=1)
 
