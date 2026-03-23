@@ -157,4 +157,5 @@ Contents
    api
    limitations
    new_devices
+   app_decoding
    source
