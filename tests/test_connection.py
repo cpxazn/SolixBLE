@@ -20,7 +20,7 @@ MOCK_BLE_DEVICE = BLEDevice(MOCK_DEVICE_ADDRESS, MOCK_DEVICE_NAME, {})
 
 
 @pytest.mark.asyncio
-async def test_automatic_retry():
+async def test_automatic_retry(fast_sleep, fast_timeouts):
     """
     Test the automatic retrying of a lost connection when the
     reconnection happens within the timeout.
@@ -79,9 +79,7 @@ async def test_automatic_retry():
 
 
 @pytest.mark.asyncio
-@patch("SolixBLE.device.DISCONNECT_TIMEOUT", 5)
-@patch("SolixBLE.device.RECONNECT_DELAY", 1)
-async def test_automatic_retry_timeout():
+async def test_automatic_retry_timeout(fast_sleep, fast_timeouts):
     """
     Test the automatic retrying of a lost connection when
     the reconnection takes longer than the timeout.
@@ -114,7 +112,7 @@ async def test_automatic_retry_timeout():
 
         # We expect the negotiations to succeed
         assert await device.connect(), "Expected connect to return True"
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(1)
         assert device.connected, "Expected connected to be True"
         assert device.negotiated, "Expected connected to be True"
         mock_bluetooth.check_assertions()
@@ -125,7 +123,7 @@ async def test_automatic_retry_timeout():
 
         # We then trigger a disconnect from the device
         mock_bluetooth.disconnect()
-        await asyncio.sleep(7)
+        await asyncio.sleep(160)
         assert not device.connected, "Expected connected to be False"
         assert not device.negotiated, "Expected connected to be False"
 
@@ -144,7 +142,7 @@ async def test_automatic_retry_timeout():
             )
 
         # We expect to have been automatically reconnected
-        await asyncio.sleep(7)
+        await asyncio.sleep(30)
         assert device.connected, "Expected connected to be True"
         assert device.negotiated, "Expected connected to be True"
         mock_bluetooth.check_assertions()

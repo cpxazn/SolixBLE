@@ -562,6 +562,8 @@ async def test_values(
     ],
 )
 async def test_negotiation(
+    fast_sleep,
+    fast_timeouts,
     device_class: SolixBLEDevice,
     packets: list[str],
     secret: str,
@@ -796,6 +798,8 @@ def test_payload_decryption(
     ],
 )
 async def test_telemetry_packet_processing(
+    fast_sleep,
+    fast_timeouts,
     device_class: SolixBLEDevice,
     packets: list[str],
     secret: str,
