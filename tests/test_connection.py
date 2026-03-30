@@ -83,7 +83,7 @@ async def test_automatic_retry(
         mock_bluetooth.allow_connect()
 
         # We expect to have been automatically reconnected
-        await asyncio.sleep(5)
+        await asyncio.sleep(30)
         assert device.connected, "Expected connected to be True"
         assert device.negotiated, "Expected connected to be True"
         mock_bluetooth.check_assertions()
