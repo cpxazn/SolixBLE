@@ -90,6 +90,19 @@ class LightStatus(Enum):
     SOS = 4
 
 
+class LightMode(Enum):
+    """The light mode of the device."""
+
+    #: The light mode is unknown.
+    UNKNOWN = -1
+
+    #: Normal light mode.
+    NORMAL = 0
+
+    #: Mood light mode.
+    MOOD = 1
+
+
 class DisplayTimeout(Enum):
     """Display timeout on device in seconds. Only specific values are allowed."""
 
@@ -122,6 +135,68 @@ class TemperatureUnit(Enum):
 
     #: Display unit is Fahrenheit.
     FAHRENHEIT = 1
+
+class GridStatus(Enum):
+    """The grid connection status."""
+
+    #: The grid status is unknown.
+    UNKNOWN = -1
+
+    #: Grid is connected and OK.
+    OK = 1
+
+    #: Undocumented in API, but device operates as expected and
+    #: outputs power to grid. Maybe a pure "dispense" state because
+    #: SB2 can't draw power from the grid
+    OK_AS_WELL_I_GUESS = 2
+
+    #: Grid is connecting.
+    CONNECTING = 3
+
+    #: No grid connection.
+    NO_GRID = 6
+
+
+class SBUsageMode(Enum):
+    """Usage mode of a Solarbank device."""
+
+    #: The usage mode is unknown.
+    UNKNOWN = -1
+
+    #: Manual (schedule) mode.
+    MANUAL = 1
+
+    #: Smart meter mode.
+    SMARTMETER = 2
+
+    #: Smart plugs mode.
+    SMARTPLUGS = 3
+
+    #: Backup mode.
+    BACKUP = 4
+
+    #: Use time mode.
+    USE_TIME = 5
+
+    #: Smart mode.
+    SMART = 7
+
+    #: Time slot mode.
+    TIME_SLOT = 8
+
+
+class SBPowerCutoff(Enum):
+    """Power cutoff threshold of a Solarbank device in %."""
+
+    #: The cutoff threshold is unknown.
+    UNKNOWN = -1
+
+    #: 5 %.
+    P5 = 5
+
+    #: 10 %.
+    P10 = 10
+
 
 class PortOverload(Enum):
     """The overload status of a port."""

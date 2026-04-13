@@ -4,8 +4,38 @@
 
 """
 
-from ..const import DEFAULT_METADATA_FLOAT, DEFAULT_METADATA_STRING
+from enum import Enum
+
+from ..const import (
+    DEFAULT_METADATA_BOOL,
+    DEFAULT_METADATA_FLOAT,
+    DEFAULT_METADATA_STRING,
+)
 from ..device import SolixBLEDevice
+from ..states import GridStatus, LightMode, SBPowerCutoff, SBUsageMode, TemperatureUnit
+
+
+class MaxLoadSB2(Enum):
+    """
+    Maximum output power of the Solarbank 2 in watts.
+    
+    Only specific values are allowed.
+    """
+
+    #: The maximum load is unknown.
+    UNKNOWN = -1
+
+    #: 350 watts.
+    W350 = 350
+
+    #: 600 watts.
+    W600 = 600
+
+    #: 800 watts.
+    W800 = 800
+
+    #: 1000 watts.
+    W1000 = 1000
 
 
 class Solarbank2(SolixBLEDevice):
@@ -14,10 +44,6 @@ class Solarbank2(SolixBLEDevice):
 
     Use this class to connect and monitor a Solarbank 2 power station.
     This model is also known as the A17C1.
-
-    .. note::
-        This model was added using data from anker-solix-api. It has not been
-        tested!
 
     .. note::
         It should be possible to add more sensors. I think devices with lots of
@@ -132,9 +158,9 @@ class Solarbank2(SolixBLEDevice):
 
     @property
     def pv_yield(self) -> float:
-        """Solar power generated.
+        """Solar energy generated in kWh.
 
-        :returns: Total solar power generated or default float value.
+        :returns: Total solar energy generated or default float value.
         """
         if self._data is None:
             return DEFAULT_METADATA_FLOAT
@@ -143,18 +169,20 @@ class Solarbank2(SolixBLEDevice):
 
     @property
     def charged_energy(self) -> float:
-        """Energy used to charge the battery?
+        """Total accumulated energy that passed through the battery in kWh
 
-        :returns: I don't know what this means or default float value.
+        :returns: The amount of energy or default float value.
         """
         if self._data is None:
             return DEFAULT_METADATA_FLOAT
 
-        return self._parse_int("b2", begin=1) / 10000.0
+        # The / 100 000 is correct despite all other divisors being 10 000.
+        # This is the "Storage" stats field in the Anker app
+        return self._parse_int("b2", begin=1) / 100000.0
 
     @property
     def output_energy(self) -> float:
-        """Output energy.
+        """Output energy in kWh.
 
         :returns: Total energy output or default float value.
         """
@@ -305,3 +333,115 @@ class Solarbank2(SolixBLEDevice):
             return DEFAULT_METADATA_FLOAT
 
         return self._parse_int("d3", begin=1) / 10.0
+
+    @property
+    def error_code(self) -> int:
+        """Device error code.
+
+        :returns: Error code or default int value.
+        """
+        return self._parse_int("a5", begin=1)
+
+    @property
+    def temperature_unit(self) -> TemperatureUnit:
+        """Temperature unit setting.
+
+        :returns: Temperature unit (Celsius or Fahrenheit).
+        """
+        return TemperatureUnit(self._parse_int("a9", begin=1))
+
+    @property
+    def output_cutoff_data(self) -> SBPowerCutoff:
+        """
+        Output cutoff threshold in %.
+
+        Minimum battery SOC to maintain.
+
+        :returns: Output cutoff battery SOC threshold.
+        """
+        return SBPowerCutoff(self._parse_int("b4", begin=1))
+
+    @property
+    def lowpower_input_data(self) -> int:
+        """Low power input data.
+
+        :returns: Low power input data or default int value.
+        """
+        return self._parse_int("b5", begin=1)
+
+    @property
+    def input_cutoff_data(self) -> SBPowerCutoff:
+        """Input cutoff threshold in %.
+
+        :returns: Input cutoff battery SOC threshold.
+        """
+        return SBPowerCutoff(self._parse_int("b6", begin=1))
+
+    @property
+    def max_load(self) -> MaxLoadSB2:
+        """
+        Maximum output power in watts.
+        
+        Maximum legal value depends on country of operation.
+
+        :returns: Maximum load as a MaxLoadSB2 enum value.
+        """
+        return MaxLoadSB2(self._parse_int("c2", begin=1))
+
+    @property
+    def usage_mode(self) -> SBUsageMode:
+        """Usage mode.
+
+        :returns: Usage mode as a SBUsageMode enum value.
+        """
+        return SBUsageMode(self._parse_int("c6", begin=1))
+
+    @property
+    def home_load_preset(self) -> int:
+        """Home load preset in watts.
+
+        :returns: Home load preset in watts or default int value.
+        """
+        return self._parse_int("c7", begin=1)
+
+    @property
+    def light_mode(self) -> LightMode:
+        """Light mode. Normal or Mood.
+
+        :returns: Light mode.
+        """
+        return LightMode(self._parse_int("d2", begin=1))
+
+    @property
+    def grid_status(self) -> GridStatus:
+        """Grid connection status.
+
+        :returns: Grid status.
+        """
+        return GridStatus(self._parse_int("e0", begin=1))
+
+    @property
+    def light_on(self) -> bool | None:
+        """Whether the light is switched on.
+        Original value is inverted because it is called "light_off_switch"
+
+        :returns: True if light is on, False if off.
+        """
+        return (
+            not bool(self._parse_int("e1", begin=1))
+            if self._data is not None
+            else DEFAULT_METADATA_BOOL
+        )
+
+    @property
+    def battery_heating(self) -> bool | None:
+        """Whether the battery is currently heating.
+
+        :returns: True if heating, False if not heating.
+        """
+        return (
+            bool(self._parse_int("e8", begin=1))
+            if self._data is not None
+            else DEFAULT_METADATA_BOOL
+        )
+
