@@ -43,12 +43,12 @@ Battery health          ❌        ✅          ✅        ✅        ✅       
 Temperature             ✅        ✅          ✅        ✅        ✅         ✅           ✅
 Total Power In          ✅        ✅          ✅        ✅        ❌         ❌           ✅     
 Total Power Out         ✅        ✅          ✅        ✅        ✅         ❌           ✅ 
-AC on/off control       ✅        N/A         ✅        ✅        ❌         ❌           ❌  
+AC on/off control       ✅        N/A         ✅        ✅        ✅         ❌           ❌  
 AC Power in             ✅        N/A         ✅        ✅        ✅         ✅           ✅     
 AC Power out            ✅        N/A         ✅        ✅        ✅         ✅           ✅  
 AC on/off state         ✅        N/A         ✅        ✅        ✅         ❌           ✅   
 AC Timer                ✅        N/A         ✅        ✅        ❌         ❌           ❌  
-DC on/off control       ✅        ❌          ✅        ✅        ❌         ❌           ❌  
+DC on/off control       ✅        ❌          ✅        ✅        ✅         ❌           ❌
 DC Power in             ✅        ✅          ✅        ✅        ✅         ✅           ✅   
 DC Power out            ✅        ✅          ❌        ❌        ✅         ✅           ✅  
 DC Power in status      ✅        ✅          ❌        ❌        ✅         ❌           ❌ 

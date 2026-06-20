@@ -7,6 +7,7 @@
 import asyncio
 import logging
 from typing import Any
+from unittest import mock
 
 import pytest
 
@@ -264,6 +265,71 @@ from tests.helpers import MockDevice
                 "min_battery_percentage": 1,
             },
             id="c1000g2",
+        ),
+        # The two cases below are decrypted telemetry frames captured from a real
+        # C1000 Gen 2 (A1763) on 2026-06-21 with the AC output physically off then
+        # on (idle, no load). They are identical except for the "a7" param, which
+        # locks in the AC output decode: ac_output is "a7" byte 1 (00=off, 01=on,
+        # latched) -- the same per-port "04 <status> <watts LE>" shape used by the
+        # DC port (b2) and USB ports. ("a4" byte 22 is NOT the AC state: it stayed
+        # 01 with the port physically off, so an a4-based decode reports a false
+        # OUTPUT.)
+        pytest.param(
+            C1000G2,
+            "a10131a221062011415043444b39363047313631303033393000054131373633030401010100a30e0400000000b0040064cc00580200a41b0400000000580232010000000000f0003c00010000000100500a00a506042400396400a60a04000000000000ab2a39a70704000000000000a80404000000aa0404000000ab0404000000ac0404000000ae0404000000b20404000000d91a04000019500a0000000000000000000000000000000000000000da18040000000000000000000001e00164057f00000000000000dc06040000000000f91d0403040101060005000000000000000000090300010000000006090200fa15040101010100170300000000000000000000000000fd0e0031373832303439353930383637fe050364f4376a",
+            {
+                "serial_number": "APCDK960G16100390",
+                "part_number": "A1763",
+                "temperature": 36,
+                "battery_percentage": 57,
+                "battery_health": 100,
+                "ac_output": PortStatus.NOT_CONNECTED,
+                "ac_power_in": 0,
+                "ac_power_out": 0,
+                "power_out": 0,
+                "solar_port": PortStatus.NOT_CONNECTED,
+                "dc_output": PortStatus.NOT_CONNECTED,
+                "max_battery_percentage": 80,
+                "min_battery_percentage": 10,
+            },
+            id="c1000g2_ac_off",
+        ),
+        pytest.param(
+            C1000G2,
+            "a10131a221062011415043444b39363047313631303033393000054131373633030401010100a30e0400000000b0040064cc00580200a41b0400000000580232010000000000f0003c00010000000100500a00a506042400396400a60a04000000000000ab2a39a70704010000000000a80404000000aa0404000000ab0404000000ac0404000000ae0404000000b20404000000d91a04000019500a0000000000000000000000000000000000000000da18040000000000000000000001e00164057f00000000000000dc06040000000000f91d0403040101060005000000000000000000090300010000000006090200fa15040101010100170300000000000000000000000000fd0e0031373832303439353930383637fe050369f4376a",
+            {
+                "serial_number": "APCDK960G16100390",
+                "part_number": "A1763",
+                "temperature": 36,
+                "battery_percentage": 57,
+                "battery_health": 100,
+                "ac_output": PortStatus.OUTPUT,
+                "ac_power_in": 0,
+                "ac_power_out": 0,
+                "power_out": 0,
+                "solar_port": PortStatus.NOT_CONNECTED,
+                "dc_output": PortStatus.NOT_CONNECTED,
+                "max_battery_percentage": 80,
+                "min_battery_percentage": 10,
+            },
+            id="c1000g2_ac_on",
+        ),
+        # Derived from the idle "c1000g2" frame above with only the "b2" param
+        # changed from 04000000 to 04010600 -- the value observed live on a real
+        # C1000 Gen 2 with the DC output on and a ~6 W 12 V load. This locks in
+        # the DC decode: dc_output is "b2" byte 1 (01 = OUTPUT) and dc_power_out
+        # is "b2" [2:4] little-endian watts (0x0006 = 6 W).
+        pytest.param(
+            C1000G2,
+            "a10134a221062011415043444b39363146333734303032393000054131373633060201010100a30b0400000000b0040058dc00a41b0400000000b0043201000000000000001e00010000000000640103a506041700646400a60a04000000000000ab2a64a70704000000010000a80404000000aa0404000000ab0404000000ac0404000000ae0404000000b20404010600d91a0400001964010000000100000000000000000000000000000000da18040000000000000000000001e00164057f00000000000000dc06040000000000f91d0406020101050005000000000005000500050300010000000000020200fa150401010101001f0300000000000000000000000000fd0e0031373634363538323735393838fe0503638c2e69f0",
+            {
+                "serial_number": "APCDK961F37400290",
+                "battery_percentage": 100,
+                "ac_output": PortStatus.NOT_CONNECTED,
+                "dc_output": PortStatus.OUTPUT,
+                "dc_power_out": 6,
+            },
+            id="c1000g2_dc_on",
         ),
         pytest.param(
             C300,
@@ -682,6 +748,30 @@ async def test_values(
         assert (
             getattr(device, class_property) == expected_value
         ), f"Mismatch for property '{class_property}'!"
+
+
+@pytest.mark.asyncio
+async def test_c1000g2_dc_control() -> None:
+    """C1000 Gen 2 DC output control dispatches command 4102.
+
+    Confirmed on real hardware (the 12 V port physically switched and acked).
+    Here we just lock in that turn_dc_on/off send command 4102 with the same
+    on/off payloads as the AC output, which is the only difference between the
+    two on the Gen 2.
+    """
+    device = C1000G2(MOCK_BLE_DEVICE)
+    device._send_command = mock.AsyncMock()
+
+    await device.turn_dc_on()
+    device._send_command.assert_awaited_once_with(
+        cmd=bytes.fromhex("4102"), payload=bytes.fromhex("a10121a2020101")
+    )
+
+    device._send_command.reset_mock()
+    await device.turn_dc_off()
+    device._send_command.assert_awaited_once_with(
+        cmd=bytes.fromhex("4102"), payload=bytes.fromhex("a10121a2020100")
+    )
 
 
 @pytest.mark.asyncio

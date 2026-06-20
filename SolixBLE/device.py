@@ -52,6 +52,11 @@ _LOGGER = logging.getLogger(__name__)
 class SolixBLEDevice:
     """Solix BLE device object."""
 
+    #: Command codes (hex) that carry telemetry for this device. Subclasses can
+    #: override this if their model uses different telemetry command codes
+    #: (e.g the C1000 Gen 2 uses ``c421``/``c900`` instead of ``c402``/``c405``).
+    _TELEMETRY_COMMANDS: tuple[str, ...] = ("c402", "4300", "c405")
+
     def __init__(self, ble_device: BLEDevice) -> None:
         """Initialise device object. Does not connect automatically."""
 
@@ -195,6 +200,15 @@ class SolixBLEDevice:
         if self._disconnect_event.is_set():
             self._disconnect_event.clear()
 
+        # Run any device-specific post-connect setup (e.g sending a subscribe
+        # command to start telemetry). This runs on every (re)connection. Errors
+        # are logged but do not abort the connection; the automatic reconnect
+        # task will retry.
+        try:
+            await self._post_connect()
+        except Exception:
+            _LOGGER.exception(f"Error running post-connect setup for '{self.name}'!")
+
         # Start an automatic reconnect task if its not running already
         if self._auto_reconnect_task is None:
             self._auto_reconnect_task = asyncio.create_task(self._auto_reconnect())
@@ -204,6 +218,17 @@ class SolixBLEDevice:
             self._run_state_changed_callbacks()
 
         return True
+
+    async def _post_connect(self) -> None:
+        """Run device-specific setup after a negotiated connection is established.
+
+        Called by :meth:`connect` once the encrypted session has been negotiated
+        (so :meth:`_send_command` may be used) and on every automatic reconnect.
+        The default implementation does nothing; subclasses can override it to,
+        for example, send a subscribe command to start a telemetry stream (see
+        :class:`~SolixBLE.devices.c1000g2.C1000G2`).
+        """
+        return None
 
     async def disconnect(self) -> None:
         """Disconnect from device and reset internal state.
@@ -623,43 +648,41 @@ class SolixBLEDevice:
             # Encrypted messages
             case "03010f" | "030111":
 
-                match cmd.hex():
+                # Telemetry messages
+                if cmd.hex() in self._TELEMETRY_COMMANDS:
+                    _LOGGER.debug("Received telemetry message!")
+                    return await self._process_telemetry_packet(payload, cmd)
 
-                    # Telemetry messages
-                    case "c402" | "4300" | "c405":
-                        _LOGGER.debug("Received telemetry message!")
-                        return await self._process_telemetry_packet(payload, cmd)
+                # Unknown messages
+                else:
+                    _LOGGER.debug(f"Received unknown message of type: {cmd.hex()}")
+                    try:
 
-                    # Unknown messages
-                    case _:
-                        _LOGGER.debug(f"Received unknown message of type: {cmd.hex()}")
-                        try:
-
-                            # If the payload is one byte too short and we are
-                            # using the default AES (CBC) then try putting the
-                            # last byte of the cmd in front of it
-                            if (
-                                len(payload) % 16 == 15
-                                and self._decrypt_payload
-                                is SolixBLEDevice._decrypt_payload
-                            ):
-                                _LOGGER.debug(
-                                    "Using special trick of embedded part of CMD in payload..."
-                                )
-                                payload = cmd[1].to_bytes() + payload
-
-                            decrypted_payload = self._decrypt_payload(payload)
+                        # If the payload is one byte too short and we are
+                        # using the default AES (CBC) then try putting the
+                        # last byte of the cmd in front of it
+                        if (
+                            len(payload) % 16 == 15
+                            and self._decrypt_payload
+                            is SolixBLEDevice._decrypt_payload
+                        ):
                             _LOGGER.debug(
-                                f"Decrypted payload: {decrypted_payload.hex()}"
+                                "Using special trick of embedded part of CMD in payload..."
                             )
-                            parameters = self._parse_payload(decrypted_payload)
-                            _LOGGER.debug(
-                                f"Parameters: {self._parameters_to_str(parameters, types=True)}"
-                            )
-                        except Exception:
-                            _LOGGER.exception(
-                                "Exception decrypting unknown message type"
-                            )
+                            payload = cmd[1].to_bytes() + payload
+
+                        decrypted_payload = self._decrypt_payload(payload)
+                        _LOGGER.debug(
+                            f"Decrypted payload: {decrypted_payload.hex()}"
+                        )
+                        parameters = self._parse_payload(decrypted_payload)
+                        _LOGGER.debug(
+                            f"Parameters: {self._parameters_to_str(parameters, types=True)}"
+                        )
+                    except Exception:
+                        _LOGGER.exception(
+                            "Exception decrypting unknown message type"
+                        )
 
             case _:
                 _LOGGER.warning(
