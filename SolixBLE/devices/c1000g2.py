@@ -157,12 +157,15 @@ class C1000G2(SolixBLEDevice):
         PortStatus.NOT_CONNECTED signifies off.
         PortStatus.OUTPUT signifies on.
 
-        The AC port status is the first byte of the ``a7`` parameter, mirroring the
-        ``04 <status> <watts LE>`` per-port shape used by the DC port (``b2``) and the
-        USB ports; ``ac_power_out`` reads the watts from this same ``a7`` TLV. Confirmed
-        on hardware: ``a7[1]`` latches ``01`` (OUTPUT) when AC is on and ``00`` when off,
-        tracking the relay. (The ``a4`` parameter is constant at the previously-used
-        offset and does NOT reflect the AC state.)
+        .. note::
+
+           The AC port status is the first byte of the ``a7`` parameter,
+           mirroring the ``04 <status> <watts LE>`` per-port shape used by the
+           DC port (``b2``) and the USB ports; ``ac_power_out`` reads the watts
+           from this same ``a7`` TLV. Confirmed on hardware: ``a7[1]`` latches
+           ``01`` (OUTPUT) when AC is on and ``00`` when off, tracking the relay.
+           (The ``a4`` parameter is constant at the previously-used offset and
+           does NOT reflect the AC state.)
 
         :returns: Status of the AC port.
         """

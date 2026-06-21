@@ -228,7 +228,7 @@ class SolixBLEDevice:
         for example, send a subscribe command to start a telemetry stream (see
         :class:`~SolixBLE.devices.c1000g2.C1000G2`).
         """
-        return None
+        pass
 
     async def disconnect(self) -> None:
         """Disconnect from device and reset internal state.
