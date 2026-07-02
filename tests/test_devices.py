@@ -24,6 +24,7 @@ from SolixBLE import (
     PrimeCharger160w,
     PrimeDevice,
     PrimePowerBank20k,
+    S2000,
     Solarbank2,
     SolixBLEDevice,
     TemperatureUnit,
@@ -331,6 +332,30 @@ from tests.helpers import MockDevice
                 "dc_power_out": 6,
             },
             id="c1000g2_dc_on",
+        ),
+        pytest.param(
+            S2000,
+            "a10131a221062011415043445054433047323135303032343000054153323230040000010000a30e0402000000b0040064cc00580200a41f0400000000b0043c010000000001d0021e000200010000016401005553f000a506042602536400a60e0400004e04000004005300014e04a70c04000000014e040000000000a80404000000aa0404000000d91a0400000664010000000000000000000000000000000000000000dc06040000000000dd020400de020400df0704000000000000f0050400000000f806040100280a0af91d0404000001000000000000000008010100000000000000000005020300fa15040101010100170000000000000000000000000000fd0100fe0503e0e36c38",
+            {
+                "serial_number": "APCDPTC0G21500240",
+                "part_number": "AS220",
+                "temperature": 38,
+                "charging_status": ChargingStatus.CHARGING,
+                "battery_percentage": 83,
+                "battery_health": 100,
+                "power_in": 1102,
+                "power_out": 0,
+                "ac_power_in": 1102,
+                "ac_output": PortStatus.NOT_CONNECTED,
+                "ac_power_out": 0,
+                "solar_port": PortStatus.NOT_CONNECTED,
+                "solar_power_in": 0,
+                "usb_output": PortStatus.NOT_CONNECTED,
+                "usb_power": 0,
+                "max_battery_percentage": 100,
+                "min_battery_percentage": 1,
+            },
+            id="s2000_ac_charge",
         ),
         pytest.param(
             C300,
@@ -837,6 +862,24 @@ async def test_values(
         assert (
             getattr(device, class_property) == expected_value
         ), f"Mismatch for property '{class_property}'!"
+
+
+@pytest.mark.asyncio
+async def test_s2000_ac_control() -> None:
+    """S2000 AC output control dispatches command 4101."""
+    device = S2000(MOCK_BLE_DEVICE)
+    device._send_command = mock.AsyncMock()
+
+    await device.turn_ac_on()
+    device._send_command.assert_awaited_once_with(
+        cmd=bytes.fromhex("4101"), payload=bytes.fromhex("a10121a2020101")
+    )
+
+    device._send_command.reset_mock()
+    await device.turn_ac_off()
+    device._send_command.assert_awaited_once_with(
+        cmd=bytes.fromhex("4101"), payload=bytes.fromhex("a10121a2020100")
+    )
 
 
 @pytest.mark.asyncio

@@ -27,6 +27,7 @@ from SolixBLE import (
     PrimePowerBank20k,
     Solarbank2,
     Solarbank3,
+    S2000,
     SolixBLEDevice,
     discover_devices,
 )
@@ -41,6 +42,7 @@ MODELS = {
     "F3800": F3800,
     "Solarbank 2": Solarbank2,
     "Solarbank 3": Solarbank3,
+    "S2000": S2000,
     "PrimeCharger160w": PrimeCharger160w,
     "PrimeCharger250w": PrimeCharger250w,
     "Prime Power Bank 20k/220w": PrimePowerBank20k,
