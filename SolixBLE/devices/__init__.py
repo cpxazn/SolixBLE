@@ -17,6 +17,7 @@ from .prime_charger_250w import PrimeCharger250w
 from .prime_power_bank_20k import PrimePowerBank20k
 from .solarbank2 import Solarbank2
 from .solarbank3 import Solarbank3
+from .s2000 import S2000
 
 __all__ = [
     "C300",
@@ -28,6 +29,7 @@ __all__ = [
     "F3800",
     "Solarbank2",
     "Solarbank3",
+    "S2000",
     "PrimeCharger160w",
     "PrimeCharger250w",
     "PrimePowerBank20k",

@@ -1,0 +1,6 @@
+S2000
+=====
+
+.. autoclass:: SolixBLE.S2000
+    :members:
+    :undoc-members:
